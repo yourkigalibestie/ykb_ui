@@ -37,6 +37,7 @@ export function Navbar() {
     const navLinks = [
         { path: '/', label: t('navigation.home') },
         { path: '/services', label: t('navigation.services') },
+        { path: '/guide', label: 'Starter Guide' },
         { path: '/subscribe', label: t('navigation.subscribe') },
         ...(isLoggedIn
             ? [
@@ -117,11 +118,11 @@ export function Navbar() {
                     <Link to="/" className="flex items-center gap-2 group">
                         <img
                             src={logo}
-                            alt="Your Kigali Bestie"
+                            alt="KIGALI BESPOKE CONCIERGE"
                             className="w-20 h-20 object-contain transition-transform duration-300 group-hover:scale-105"
                         />
                         <span className="font-semibold text-primary text-lg hidden sm:inline">
-                            Your<span className="text-secondary">Kigali</span>Bestie
+                            KIGALI BESPOKE CONCIERGE
                         </span>
                     </Link>
 

@@ -134,7 +134,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 export async function fetchPublicServices(): Promise<PublicService[]> {
   const [publicServicesResult, starterGuideResult] = await Promise.allSettled([
     fetchJson<{ services?: unknown }>(`${API_BASE}/services`),
-    fetchJson<{ categories?: unknown }>(`${API_BASE}/starter-guide-categories`),
+    fetchJson<unknown>(`${API_BASE}/starter-guide-categories`),
   ]);
 
   const publicServices =
@@ -142,10 +142,18 @@ export async function fetchPublicServices(): Promise<PublicService[]> {
       ? publicServicesResult.value.services.filter(isPublicService)
       : [];
 
-  const starterGuideCategories =
-    starterGuideResult.status === 'fulfilled' && Array.isArray(starterGuideResult.value.categories)
-      ? starterGuideResult.value.categories.filter(isStarterGuideCategory)
-      : [];
+  const rawStarterGuide =
+    starterGuideResult.status === 'fulfilled' ? starterGuideResult.value : null;
+  let starterGuideCategories: unknown[] = [];
+  if (rawStarterGuide) {
+    if (Array.isArray(rawStarterGuide)) {
+      starterGuideCategories = rawStarterGuide;
+    } else {
+      const cats = (rawStarterGuide as Record<string, unknown>).categories;
+      if (Array.isArray(cats)) starterGuideCategories = cats;
+    }
+  }
+  starterGuideCategories = starterGuideCategories.filter(isStarterGuideCategory);
 
-  return mergeServices(publicServices, starterGuideCategories);
+  return mergeServices(publicServices, starterGuideCategories as StarterGuideCategory[]);
 }

@@ -200,6 +200,13 @@ export function Register() {
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [serviceLoadError, setServiceLoadError] = useState<string | null>(null);
   const [publicServices, setPublicServices] = useState<PublicService[]>([]);
+  
+  // Email verification states
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [showVerificationCode, setShowVerificationCode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  const [sendingVerificationCode, setSendingVerificationCode] = useState(false);
 
   const clearFieldError = (key: keyof FieldErrors) => {
     setFieldErrors((prev) => {
@@ -217,6 +224,64 @@ export function Register() {
 
   const inlineError = (key: keyof FieldErrors) =>
     fieldErrors[key] ? <p className="mt-1 text-xs font-semibold text-error">{fieldErrors[key]}</p> : null;
+
+  const sendEmailVerificationCode = async () => {
+    setSendingVerificationCode(true);
+    setError(null);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+      const response = await fetch(`${API_BASE}/auth/send-verification-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: account.email }),
+      });
+
+      if (response.ok) {
+        setShowVerificationCode(true);
+        setError(null);
+      } else {
+        const data = await response.json();
+        setError(data.error?.message || 'Failed to send verification code');
+      }
+    } catch (err) {
+      setError('Failed to send verification code. Please try again.');
+    } finally {
+      setSendingVerificationCode(false);
+    }
+  };
+
+  const verifyEmailCode = async () => {
+    setIsVerifyingEmail(true);
+    setError(null);
+    if (!verificationCode.trim()) {
+      setError('Please enter the verification code');
+      setIsVerifyingEmail(false);
+      return;
+    }
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+      const response = await fetch(`${API_BASE}/auth/verify-email-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: account.email, code: verificationCode }),
+      });
+
+      if (response.ok) {
+        setEmailVerified(true);
+        setShowVerificationCode(false);
+        setVerificationCode('');
+        setError(null);
+      } else {
+        const data = await response.json();
+        setError(data.error?.message || 'Invalid verification code');
+      }
+    } catch (err) {
+      setError('Failed to verify code. Please try again.');
+    } finally {
+      setIsVerifyingEmail(false);
+    }
+  };
 
   const [identity, setIdentity] = useState<IdentityState>({
     firstName: '',
@@ -455,6 +520,7 @@ export function Register() {
     if (!role) nextFieldErrors.role = t('auth.selectAccountType');
 
     if (!isNonEmpty(account.email)) nextFieldErrors.email = t('auth.emailRequired');
+    if (!emailVerified) setError('Please verify your email address before continuing');
     if (account.password.length < PASSWORD_MIN_LENGTH) {
       nextFieldErrors.password = t('auth.passwordMinLength', { length: PASSWORD_MIN_LENGTH });
     }
@@ -821,18 +887,62 @@ export function Register() {
 
                       <div>
                         {renderFieldLabel(t('auth.emailAddress'), 'email')}
-                        <input
-                          id="email"
-                          type="email"
-                          required
-                          value={account.email}
-                          onChange={(event) => {
-                            setAccount((prev) => ({ ...prev, email: event.target.value }));
-                            clearFieldError('email');
-                          }}
-                          className={fieldClass('email')}
-                          placeholder="you@example.com"
-                        />
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              id="email"
+                              type="email"
+                              required
+                              value={account.email}
+                              onChange={(event) => {
+                                setAccount((prev) => ({ ...prev, email: event.target.value }));
+                                clearFieldError('email');
+                                setEmailVerified(false);
+                              }}
+                              className={fieldClass('email')}
+                              placeholder="you@example.com"
+                              disabled={emailVerified}
+                            />
+                            {!emailVerified && (
+                              <button
+                                type="button"
+                                onClick={sendEmailVerificationCode}
+                                disabled={sendingVerificationCode || !account.email.trim()}
+                                className="px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                              >
+                                {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
+                              </button>
+                            )}
+                            {emailVerified && (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-700 font-semibold text-sm">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Verified
+                              </div>
+                            )}
+                          </div>
+
+                          {showVerificationCode && !emailVerified && (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value)}
+                                placeholder="Enter 6-digit verification code"
+                                className="ykb-field"
+                              />
+                              <button
+                                type="button"
+                                onClick={verifyEmailCode}
+                                disabled={isVerifyingEmail || !verificationCode.trim()}
+                                className="w-full px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              >
+                                {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         {inlineError('email')}
                       </div>
 
@@ -1007,18 +1117,62 @@ export function Register() {
 
                       <div>
                         {renderFieldLabel(t('auth.emailAddress'), 'email')}
-                        <input
-                          id="email"
-                          type="email"
-                          required
-                          value={account.email}
-                          onChange={(event) => {
-                            setAccount((prev) => ({ ...prev, email: event.target.value }));
-                            clearFieldError('email');
-                          }}
-                          className={fieldClass('email')}
-                          placeholder="you@example.com"
-                        />
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              id="email"
+                              type="email"
+                              required
+                              value={account.email}
+                              onChange={(event) => {
+                                setAccount((prev) => ({ ...prev, email: event.target.value }));
+                                clearFieldError('email');
+                                setEmailVerified(false);
+                              }}
+                              className={fieldClass('email')}
+                              placeholder="you@example.com"
+                              disabled={emailVerified}
+                            />
+                            {!emailVerified && (
+                              <button
+                                type="button"
+                                onClick={sendEmailVerificationCode}
+                                disabled={sendingVerificationCode || !account.email.trim()}
+                                className="px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+                              >
+                                {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
+                              </button>
+                            )}
+                            {emailVerified && (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-700 font-semibold text-sm">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Verified
+                              </div>
+                            )}
+                          </div>
+
+                          {showVerificationCode && !emailVerified && (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value)}
+                                placeholder="Enter 6-digit verification code"
+                                className="ykb-field"
+                              />
+                              <button
+                                type="button"
+                                onClick={verifyEmailCode}
+                                disabled={isVerifyingEmail || !verificationCode.trim()}
+                                className="w-full px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              >
+                                {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         {inlineError('email')}
                       </div>
 

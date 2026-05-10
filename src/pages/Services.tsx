@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BookOpenText, CircleHelp, Compass, ExternalLink, Languages, Smartphone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, BookOpenText, CircleHelp, ClipboardList, Compass, ExternalLink, Languages, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ServiceCard } from '../components/ServiceCard';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { openWhatsApp } from '../utils/whatsapp';
 
 type PublicService = {
@@ -25,6 +27,7 @@ type StarterGuideCategory = {
   category: string;
   group?: StarterGuideCategoryGroup | null;
   subcategories: string[] | null;
+  isStarterKit?: boolean;
 };
 
 type ProviderServiceOffering = {
@@ -129,6 +132,7 @@ function parseServiceOfferings(value: unknown): ProviderServiceOffering[] {
 
 export function Services() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [services, setServices] = useState<PublicService[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [guideCategories, setGuideCategories] = useState<StarterGuideCategory[]>([]);
@@ -267,7 +271,7 @@ export function Services() {
 
   const starterGuideBlocks = useMemo(() => {
     const blocks = guideCategories
-      .filter((item) => item.group !== 'APP')
+      .filter((item) => item.group !== 'APP' && item.isStarterKit === false)
       .slice(0, 3)
       .map((item) => ({
         title: item.category,
@@ -309,10 +313,17 @@ export function Services() {
               </p>
               <button
                 onClick={() => openWhatsApp('Hello Your Kigali Bestie, I need help booking a custom service or provider.')}
-                className="ykb-button-primary w-full"
+                className="ykb-button-primary w-full mb-3"
               >
                 <span>{t('services.helpMeBook')}</span>
                 <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => navigate('/request')}
+                className="ykb-button-outline w-full"
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span>Request Service</span>
               </button>
             </div>
           </div>
@@ -344,9 +355,7 @@ export function Services() {
             </p>
 
             {status === 'loading' || status === 'idle' ? (
-              <div className="ykb-card">
-                <p className="text-sm text-textSecondary">Loading services…</p>
-              </div>
+              <LoadingSpinner size="md" text="Loading services…" centered />
             ) : status === 'error' ? (
               <div className="ykb-card">
                 <div className="ykb-alert ykb-alert-error">{error ?? 'Could not load services.'}</div>
@@ -584,19 +593,36 @@ export function Services() {
               ))}
             </div>
 
-            <div className="mt-6 ykb-card">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-primary">{t('services.needPersonalizedHelp')}</h3>
-                  <p className="text-sm text-textSecondary">{t('services.personalizedHelpDescription')}</p>
+            <div className="mt-6 space-y-4">
+              <div className="ykb-card">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary">View Full Starter Guide</h3>
+                    <p className="text-sm text-textSecondary">Explore all starter kit services and resources for new arrivals.</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/guide')}
+                    className="ykb-button-primary"
+                  >
+                    <span>View Full Guide</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => openWhatsApp('Hello, I would like personalized support from Your Kigali Bestie.')}
-                  className="ykb-button-primary"
-                >
-                  <CircleHelp className="h-4 w-4" />
-                  <span>{t('services.contactSupport')}</span>
-                </button>
+              </div>
+              <div className="ykb-card">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary">{t('services.needPersonalizedHelp')}</h3>
+                    <p className="text-sm text-textSecondary">{t('services.personalizedHelpDescription')}</p>
+                  </div>
+                  <button
+                    onClick={() => openWhatsApp('Hello, I would like personalized support from Your Kigali Bestie.')}
+                    className="ykb-button-primary"
+                  >
+                    <CircleHelp className="h-4 w-4" />
+                    <span>{t('services.contactSupport')}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>

@@ -1,4 +1,5 @@
-import { Phone, Mail, MapPin, Heart, ChevronRight } from 'lucide-react';
+
+import { Phone, Mail, MapPin, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Footer() {
@@ -22,13 +23,20 @@ export function Footer() {
         { path: '/request?service=Tour%20Guide', label: 'Tour Guide' },
     ];
 
+
     return (
-        <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200">
+        <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200 text-gray-900">
             {/* Main Footer */}
             <div className=" mx-auto cols px-4 sm:px-6 lg:px-4 pt-2 pb-2">
 
+
+
+
                 {/* Links Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 py-12">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 py-12 ">
+
+                    
+
                     {/* Quick Links */}
                     <div>
                         <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-5">
@@ -41,7 +49,7 @@ export function Footer() {
                                         to={link.path}
                                         className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group"
                                     >
-                                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                         <span className="group-hover:translate-x-0.5 transition-transform inline-block">
                                             {link.label}
                                         </span>
@@ -50,6 +58,7 @@ export function Footer() {
                             ))}
                         </ul>
                     </div>
+
 
                     {/* Services */}
                     <div>
@@ -63,7 +72,7 @@ export function Footer() {
                                         to={link.path}
                                         className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group"
                                     >
-                                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                         <span className="group-hover:translate-x-0.5 transition-transform inline-block">
                                             {link.label}
                                         </span>
@@ -73,6 +82,7 @@ export function Footer() {
                         </ul>
                     </div>
 
+
                     {/* Support */}
                     <div>
                         <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-5">
@@ -81,25 +91,25 @@ export function Footer() {
                         <ul className="space-y-3">
                             <li>
                                 <Link to="/faq" className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group">
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                     <span className="group-hover:translate-x-0.5 transition-transform inline-block">FAQ</span>
                                 </Link>
                             </li>
                             <li>
                                 <Link to="/privacy" className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group">
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                     <span className="group-hover:translate-x-0.5 transition-transform inline-block">Privacy Policy</span>
                                 </Link>
                             </li>
                             <li>
                                 <Link to="/terms" className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group">
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                     <span className="group-hover:translate-x-0.5 transition-transform inline-block">Terms of Service</span>
                                 </Link>
                             </li>
                             <li>
                                 <Link to="/refund" className="text-gray-600 hover:text-primary transition-colors duration-200 text-sm flex items-center gap-1 group">
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-secondary" />
                                     <span className="group-hover:translate-x-0.5 transition-transform inline-block">Refund Policy</span>
                                 </Link>
                             </li>
@@ -134,7 +144,7 @@ export function Footer() {
                                 <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
                                     <MapPin className="h-4 w-4 text-primary" />
                                 </div>
-                                <span className="text-sm">Kigali, Rwanda</span>
+
                             </div>
                         </div>
                     </div>
@@ -151,13 +161,8 @@ export function Footer() {
                             <span className="w-1 h-1 rounded-full bg-gray-300"></span>
                             <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
                             <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                            <Link to="/sitemap" className="hover:text-primary transition-colors">Sitemap</Link>
                         </div>
-                        <p className="flex items-center gap-1 text-xs text-gray-500">
-                            Made with
-                            <Heart className="h-3.5 w-3.5 text-secondary" />
-                            in Kigali
-                        </p>
+
                     </div>
                 </div>
             </div>

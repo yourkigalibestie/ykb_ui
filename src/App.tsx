@@ -10,8 +10,10 @@ import { RequestService } from './pages/RequestService';
 import { Profile } from './pages/Profile';
 import { Plans } from './pages/Plans';
 import { Subscribe } from './pages/Subscribe';
+import { PaymentCallback } from './pages/PaymentCallback';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { ServiceProviderDashboard } from './pages/serviceProvider/Dashboard';
 import { ServiceProviderServices } from './pages/serviceProvider/Services';
 import { ProviderRequests } from './pages/serviceProvider/Requests';
@@ -20,10 +22,9 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminServiceProviders } from './pages/admin/ServiceProviders';
 import { AdminProviderDetails } from './pages/admin/ProviderDetails';
-import { AdminServices } from './pages/admin/Services';
+import { AdminStarterandServices } from './pages/admin/AdminStarterAndServices';
 import { AdminRequests } from './pages/admin/Requests';
 import { AdminTranslators } from './pages/admin/AdminTranslators';
-import { AdminStarterGuide } from './pages/admin/AdminStarterGuide';
 import { AdminPlans } from './pages/admin/AdminPlans';
 import { RequireAdmin } from './components/RequireAdmin';
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -31,6 +32,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { StarterRequests } from './pages/starter/StarterRequests';
 import { StarterLayout } from './pages/starter/StarterLayout';
 import { StarterDashboard } from './pages/starter/StarterDashboard';
+
 
 function App() {
   return (
@@ -55,8 +57,10 @@ function App() {
             <Route path="/starter/requests" element={<Navigate to="/profile/requests" replace />} />
 
             <Route path="/subscribe" element={<Subscribe />} />
+            <Route path="/payment-callback" element={<PaymentCallback />} />
             <Route path="/plans" element={<Plans />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/register" element={<Register />} />
 
             {/* Service provider area */}
@@ -78,10 +82,10 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="providers" element={<AdminServiceProviders />} />
                 <Route path="providers/:providerId" element={<AdminProviderDetails />} />
-                <Route path="services" element={<AdminServices />} />
+                <Route path="services" element={<AdminStarterandServices />} />
                 <Route path="requests" element={<AdminRequests />} />
                 <Route path="translators" element={<AdminTranslators />} />
-                <Route path="starter-guide" element={<AdminStarterGuide />} />
+                <Route path="starter-guide" element={<AdminStarterandServices />} />
                 <Route path="plans" element={<AdminPlans />} />
               </Route>
             </Route>

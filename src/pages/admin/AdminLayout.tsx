@@ -4,10 +4,9 @@ const navItems: Array<{ to: string; label: string }> = [
   { to: '/admin', label: 'Dashboard' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/providers', label: 'Service Providers' },
-  { to: '/admin/services', label: 'Services' },
   { to: '/admin/requests', label: 'Requests' },
   { to: '/admin/translators', label: 'Translator Languages' },
-  { to: '/admin/starter-guide', label: 'Starter Guide' },
+  { to: '/admin/starter-guide', label: 'Starter Kit and services' },
   { to: '/admin/plans', label: 'Plans' },
 ];
 

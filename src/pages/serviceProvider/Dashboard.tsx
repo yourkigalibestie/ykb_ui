@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ExternalLink, Globe, CreditCard } from 'lucide-react';
+import { ExternalLink, Globe, CreditCard, Check, X, Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import playStoreBadge from '../../assets/icons/playstore.png';
 import appStoreBadge from '../../assets/icons/appstore.png';
-import { BackendAuthError, getBackendSession } from '../../utils/backendAuth';
+import { API_BASE, BackendAuthError, getBackendSession, getBackendAuthHeaders } from '../../utils/backendAuth';
 import { fetchProviderMeProfile, type BackendProviderProfile } from '../../utils/backendProviders';
 
 type AppLinkPreview = {
@@ -61,10 +61,45 @@ function buildAppLinkPreviews(provider: BackendProviderProfile): AppLinkPreview[
 function SubscriptionsSection() {
 	const navigate = useNavigate();
 	const { t } = useTranslation();
+	const [subscriptions, setSubscriptions] = useState<any[]>([]);
+	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		const fetchSubscriptions = async () => {
+			try {
+				setLoading(true);
+				const response = await fetch(`${API_BASE}/subscriptions/me`, {
+					headers: getBackendAuthHeaders(),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setSubscriptions(data.subscriptions || []);
+				}
+			} catch (error) {
+				console.error('Failed to fetch subscriptions:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchSubscriptions();
+	}, []);
+
+	const getStatusIcon = (status: string) => {
+		if (status === 'ACTIVE') return <Check className="w-4 h-4 text-green-600" />;
+		if (status === 'FAILED') return <X className="w-4 h-4 text-red-600" />;
+		return <Clock className="w-4 h-4 text-yellow-600" />;
+	};
+
+	const getStatusColor = (status: string) => {
+		if (status === 'ACTIVE') return 'bg-green-50 border-green-200';
+		if (status === 'FAILED') return 'bg-red-50 border-red-200';
+		return 'bg-yellow-50 border-yellow-200';
+	};
 
 	return (
 		<section className="ykb-card">
-			<div className="flex items-center justify-between gap-4">
+			<div className="flex items-center justify-between gap-4 mb-4">
 				<div className="flex items-center gap-3">
 					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10">
 						<CreditCard className="h-5 w-5 text-secondary" />
@@ -81,6 +116,49 @@ function SubscriptionsSection() {
 					{t('provider.browsePlans')}
 				</button>
 			</div>
+
+			{loading ? (
+				<div className="text-sm text-textSecondary">Loading subscriptions...</div>
+			) : subscriptions.length === 0 ? (
+				<div className="text-sm text-textSecondary">No active subscriptions. Browse plans to upgrade.</div>
+			) : (
+				<div className="space-y-3">
+					{subscriptions.map((sub) => (
+						<div key={sub.id} className={`border rounded-lg p-4 ${getStatusColor(sub.status)}`}>
+							<div className="flex items-start justify-between gap-4">
+								<div className="flex items-start gap-3">
+									<div className="mt-1">{getStatusIcon(sub.status)}</div>
+									<div>
+										<div className="font-semibold text-gray-900">{sub.plan?.title || 'Plan'}</div>
+										<div className="text-xs text-textSecondary mt-1">
+											{sub.currency} {Number(sub.amount).toLocaleString()}
+										</div>
+										{sub.startDate && (
+											<div className="text-xs text-textSecondary mt-1">
+												Active: {new Date(sub.startDate).toLocaleDateString()}
+											</div>
+										)}
+										{sub.endDate && (
+											<div className="text-xs text-textSecondary">
+												Expires: {new Date(sub.endDate).toLocaleDateString()}
+											</div>
+										)}
+									</div>
+								</div>
+								<span className={`px-2 py-1 rounded text-xs font-semibold inline-flex items-center gap-1 ${
+									sub.status === 'ACTIVE'
+										? 'bg-green-100 text-green-700'
+										: sub.status === 'FAILED'
+										? 'bg-red-100 text-red-700'
+										: 'bg-yellow-100 text-yellow-700'
+								}`}>
+									{sub.status}
+								</span>
+							</div>
+						</div>
+					))}
+				</div>
+			)}
 		</section>
 	);
 }

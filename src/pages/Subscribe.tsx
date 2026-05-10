@@ -54,6 +54,8 @@ export function Subscribe() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentWaiting, setPaymentWaiting] = useState(false);
+  const [orderTrackingId, setOrderTrackingId] = useState<string | null>(null);
 
   const [card, setCard] = useState({
     number: '',
@@ -64,7 +66,7 @@ export function Subscribe() {
   });
 
   const [mobileMoney, setMobileMoney] = useState({
-    network: 'MTN MoMo',
+    network: 'mtn' as 'mtn' | 'airtel',
     phone: '',
     name: '',
     email: '',
@@ -128,7 +130,11 @@ export function Subscribe() {
       }
 
       // Prepare payment details based on method
-      const paymentDetails = method === 'card' ? card : mobileMoney;
+      const paymentDetails = method === 'card' ? card : {
+        ...mobileMoney,
+        network: mobileMoney.network === 'mtn' ? 'MTN MoMo' : 'Airtel Money',
+        phone: `+250${mobileMoney.phone}`, // Format with country code
+      };
 
       // Create subscription
       const subscriptionResponse = await fetch(`${API_BASE}/subscriptions`, {
@@ -145,7 +151,7 @@ export function Subscribe() {
           email: method === 'card' ? card.email : mobileMoney.email,
           firstName: method === 'card' ? card.name.split(' ')[0] : mobileMoney.name.split(' ')[0],
           lastName: method === 'card' ? card.name.split(' ').slice(1).join(' ') || undefined : mobileMoney.name.split(' ').slice(1).join(' ') || undefined,
-          phone: method === 'mobileMoney' ? mobileMoney.phone : undefined,
+          phone: method === 'mobileMoney' ? `+250${mobileMoney.phone}` : undefined,
         }),
       });
 
@@ -156,7 +162,63 @@ export function Subscribe() {
 
       const result = await subscriptionResponse.json();
       if (result.paymentUrl) {
-        window.location.href = result.paymentUrl;
+        // Store order tracking ID for polling
+        sessionStorage.setItem('pesapalOrderTrackingId', result.pesapalOrderTrackingId);
+        sessionStorage.setItem('subscriptionId', result.id);
+        setOrderTrackingId(result.pesapalOrderTrackingId);
+        
+        // Set payment waiting state
+        setPaymentWaiting(true);
+        setSubmitting(false);
+        
+        // Open Pesapal in a NEW window instead of redirecting
+        const paymentWindow = window.open(result.paymentUrl, 'pesapal_payment', 'width=800,height=600');
+        
+        if (!paymentWindow) {
+          setError('Please allow pop-ups to complete payment');
+          setPaymentWaiting(false);
+          return;
+        }
+
+        // Poll for payment status every 2 seconds
+        let pollCount = 0;
+        const maxPolls = 150; // 5 minutes max polling
+        
+        const pollStatus = setInterval(async () => {
+          pollCount++;
+          
+          try {
+            const statusResponse = await fetch(
+              `${API_BASE}/subscriptions/status/check?orderTrackingId=${encodeURIComponent(result.pesapalOrderTrackingId)}`
+            );
+            
+            if (statusResponse.ok) {
+              const subscription = await statusResponse.json();
+              
+              // If payment succeeded or failed, stop polling and navigate
+              if (subscription.status === 'ACTIVE' || subscription.status === 'FAILED') {
+                clearInterval(pollStatus);
+                
+                // Close the Pesapal window if still open
+                if (paymentWindow && !paymentWindow.closed) {
+                  paymentWindow.close();
+                }
+                
+                // Redirect to payment callback with tracking ID
+                navigate(`/payment-callback?order_tracking_id=${encodeURIComponent(result.pesapalOrderTrackingId)}&merchant_ref=${encodeURIComponent(result.pesapalMerchantReference)}`);
+              }
+            }
+          } catch (error) {
+            console.error('Status polling error:', error);
+          }
+          
+          // Stop polling after max attempts
+          if (pollCount >= maxPolls) {
+            clearInterval(pollStatus);
+            navigate(`/payment-callback?order_tracking_id=${encodeURIComponent(result.pesapalOrderTrackingId)}&merchant_ref=${encodeURIComponent(result.pesapalMerchantReference)}`);
+          }
+        }, 2000);
+        
         return;
       }
 
@@ -281,7 +343,48 @@ export function Subscribe() {
             {/* Payment Form */}
             <div className="lg:col-span-2">
               <div className="ykb-card">
-                {!submitted ? (
+                {paymentWaiting ? (
+                  <div className="space-y-5">
+                    <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-5">
+                      <Loader className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1 animate-spin" />
+                      <div>
+                        <h2 className="text-2xl font-bold text-yellow-700">Payment in Progress</h2>
+                        <p className="text-yellow-600 mt-1">
+                          A payment window has been opened. Please complete your payment in the new window.
+                        </p>
+                        <p className="text-sm text-yellow-600 mt-2">
+                          ✓ We are automatically checking for payment status...
+                        </p>
+                        <p className="text-sm text-yellow-600">
+                          ✓ You will be automatically redirected once payment is confirmed.
+                        </p>
+                        <div className="mt-4 p-3 bg-yellow-100 rounded border border-yellow-200">
+                          <p className="text-xs font-semibold text-yellow-700">⚠️ Don't close this window</p>
+                          <p className="text-xs text-yellow-600 mt-1">Keep this page open while completing payment.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/payment-callback?order_tracking_id=' + encodeURIComponent(orderTrackingId || ''))}
+                      className="w-full bg-primary text-white font-semibold py-3 rounded-md hover:bg-primary/90 transition-colors"
+                    >
+                      Check Payment Status Manually
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentWaiting(false);
+                        setOrderTrackingId(null);
+                      }}
+                      className="w-full border border-primary text-primary font-semibold py-3 rounded-md hover:bg-primary/10 transition-colors"
+                    >
+                      Cancel Payment
+                    </button>
+                  </div>
+                ) : !submitted ? (
                   <>
                     {error && (
                       <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -460,19 +563,36 @@ export function Subscribe() {
                         <div className="space-y-4">
                           <h3 className="text-lg font-bold text-primary">Mobile Money Payment</h3>
 
+                          {/* Network Selection */}
                           <div>
-                            <label className="block text-sm font-semibold text-primary mb-1.5" htmlFor="network">
-                              Network
-                            </label>
-                            <select
-                              id="network"
-                              value={mobileMoney.network}
-                              onChange={(e) => setMobileMoney((p) => ({ ...p, network: e.target.value }))}
-                              className="ykb-field"
-                            >
-                              <option value="MTN MoMo">MTN MoMo</option>
-                              <option value="Airtel Money">Airtel Money</option>
-                            </select>
+                            <p className="text-sm font-semibold text-primary mb-3">Select Network:</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setMobileMoney((p) => ({ ...p, network: 'mtn' }))}
+                                className={`flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-semibold transition-colors ${
+                                  mobileMoney.network === 'mtn'
+                                    ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                                    : 'border-border bg-surface text-textSecondary hover:bg-surface/70'
+                                }`}
+                              >
+                                <Smartphone className="w-5 h-5" />
+                                MTN MoMo
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setMobileMoney((p) => ({ ...p, network: 'airtel' }))}
+                                className={`flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-semibold transition-colors ${
+                                  mobileMoney.network === 'airtel'
+                                    ? 'border-red-500 bg-red-50 text-red-700'
+                                    : 'border-border bg-surface text-textSecondary hover:bg-surface/70'
+                                }`}
+                              >
+                                <Smartphone className="w-5 h-5" />
+                                Airtel Money
+                              </button>
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -508,20 +628,53 @@ export function Subscribe() {
 
                           <div>
                             <label className="block text-sm font-semibold text-primary mb-1.5" htmlFor="mmPhone">
-                              Mobile Money Phone Number
+                              {mobileMoney.network === 'mtn' ? 'MTN MoMo Number' : 'Airtel Money Number'}
                             </label>
-                            <input
-                              id="mmPhone"
-                              required
-                              value={mobileMoney.phone}
-                              onChange={(e) => setMobileMoney((p) => ({ ...p, phone: e.target.value }))}
-                              className="ykb-field"
-                              placeholder="e.g., 0798 891 543"
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-textSecondary bg-surface px-3 py-2.5 rounded-md border border-border">
+                                +250
+                              </span>
+                              <input
+                                id="mmPhone"
+                                required
+                                value={mobileMoney.phone}
+                                onChange={(e) => {
+                                  const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                                  setMobileMoney((p) => ({ ...p, phone: digits }));
+                                }}
+                                className="ykb-field flex-1"
+                                inputMode="numeric"
+                                placeholder={mobileMoney.network === 'mtn' ? '788 888 888' : '786 222 222'}
+                              />
+                            </div>
+                            <p className="text-xs text-textSecondary mt-2">
+                              {mobileMoney.network === 'mtn' 
+                                ? '📱 Enter your MTN MoMo number (9 digits, e.g., 798 891 543)'
+                                : '📱 Enter your Airtel Money number (9 digits, e.g., 786 222 222)'}
+                            </p>
+                          </div>
+
+                          {/* Network Info */}
+                          <div className={`text-xs rounded p-3 border ${
+                            mobileMoney.network === 'mtn'
+                              ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                              : 'bg-red-50 border-red-200 text-red-700'
+                          }`}>
+                            {mobileMoney.network === 'mtn' ? (
+                              <>
+                                <p className="font-semibold">💛 MTN MoMo Payment</p>
+                                <p className="mt-1">You'll receive a payment prompt on your MTN number. Enter your USSD code to complete payment.</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-semibold">❤️ Airtel Money Payment</p>
+                                <p className="mt-1">You'll receive a payment prompt on your Airtel number. Enter your USSD code to complete payment.</p>
+                              </>
+                            )}
                           </div>
 
                           <p className="text-xs text-textSecondary bg-primary/5 border border-primary/10 rounded p-3">
-                            📱 Mobile Money payments are processed securely through Pesapal.
+                            📱 Mobile Money payments are processed securely through Pesapal. Your phone number will not be stored.
                           </p>
                         </div>
                       )}
@@ -544,7 +697,7 @@ export function Subscribe() {
                       </button>
                     </form>
                   </>
-                ) : (
+                ) : submitted ? (
                   <div className="space-y-5">
                     <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/10 p-5">
                       <BadgeCheck className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
@@ -575,7 +728,7 @@ export function Subscribe() {
                       Go to Dashboard
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
