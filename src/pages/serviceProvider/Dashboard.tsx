@@ -1,11 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ExternalLink, Globe, CreditCard, Check, X, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ExternalLink, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import playStoreBadge from '../../assets/icons/playstore.png';
 import appStoreBadge from '../../assets/icons/appstore.png';
-import { API_BASE, BackendAuthError, getBackendSession, getBackendAuthHeaders } from '../../utils/backendAuth';
+import { BackendAuthError, getBackendSession } from '../../utils/backendAuth';
 import { fetchProviderMeProfile, type BackendProviderProfile } from '../../utils/backendProviders';
+
+
 
 type AppLinkPreview = {
 	label: 'Web app' | 'Play Store' | 'App Store';
@@ -58,111 +60,6 @@ function buildAppLinkPreviews(provider: BackendProviderProfile): AppLinkPreview[
 	];
 }
 
-function SubscriptionsSection() {
-	const navigate = useNavigate();
-	const { t } = useTranslation();
-	const [subscriptions, setSubscriptions] = useState<any[]>([]);
-	const [loading, setLoading] = useState(false);
-
-	useEffect(() => {
-		const fetchSubscriptions = async () => {
-			try {
-				setLoading(true);
-				const response = await fetch(`${API_BASE}/subscriptions/me`, {
-					headers: getBackendAuthHeaders(),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSubscriptions(data.subscriptions || []);
-				}
-			} catch (error) {
-				console.error('Failed to fetch subscriptions:', error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchSubscriptions();
-	}, []);
-
-	const getStatusIcon = (status: string) => {
-		if (status === 'ACTIVE') return <Check className="w-4 h-4 text-green-600" />;
-		if (status === 'FAILED') return <X className="w-4 h-4 text-red-600" />;
-		return <Clock className="w-4 h-4 text-yellow-600" />;
-	};
-
-	const getStatusColor = (status: string) => {
-		if (status === 'ACTIVE') return 'bg-green-50 border-green-200';
-		if (status === 'FAILED') return 'bg-red-50 border-red-200';
-		return 'bg-yellow-50 border-yellow-200';
-	};
-
-	return (
-		<section className="ykb-card">
-			<div className="flex items-center justify-between gap-4 mb-4">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10">
-						<CreditCard className="h-5 w-5 text-secondary" />
-					</div>
-					<div>
-						<div className="text-sm font-semibold text-gray-900">{t('provider.subscriptionPlans')}</div>
-						<div className="text-xs text-textSecondary">{t('provider.upgradeServiceFeatures')}</div>
-					</div>
-				</div>
-				<button
-					onClick={() => navigate('/plans')}
-					className="inline-flex items-center justify-center rounded-md bg-secondary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-secondary/90"
-				>
-					{t('provider.browsePlans')}
-				</button>
-			</div>
-
-			{loading ? (
-				<div className="text-sm text-textSecondary">Loading subscriptions...</div>
-			) : subscriptions.length === 0 ? (
-				<div className="text-sm text-textSecondary">No active subscriptions. Browse plans to upgrade.</div>
-			) : (
-				<div className="space-y-3">
-					{subscriptions.map((sub) => (
-						<div key={sub.id} className={`border rounded-lg p-4 ${getStatusColor(sub.status)}`}>
-							<div className="flex items-start justify-between gap-4">
-								<div className="flex items-start gap-3">
-									<div className="mt-1">{getStatusIcon(sub.status)}</div>
-									<div>
-										<div className="font-semibold text-gray-900">{sub.plan?.title || 'Plan'}</div>
-										<div className="text-xs text-textSecondary mt-1">
-											{sub.currency} {Number(sub.amount).toLocaleString()}
-										</div>
-										{sub.startDate && (
-											<div className="text-xs text-textSecondary mt-1">
-												Active: {new Date(sub.startDate).toLocaleDateString()}
-											</div>
-										)}
-										{sub.endDate && (
-											<div className="text-xs text-textSecondary">
-												Expires: {new Date(sub.endDate).toLocaleDateString()}
-											</div>
-										)}
-									</div>
-								</div>
-								<span className={`px-2 py-1 rounded text-xs font-semibold inline-flex items-center gap-1 ${
-									sub.status === 'ACTIVE'
-										? 'bg-green-100 text-green-700'
-										: sub.status === 'FAILED'
-										? 'bg-red-100 text-red-700'
-										: 'bg-yellow-100 text-yellow-700'
-								}`}>
-									{sub.status}
-								</span>
-							</div>
-						</div>
-					))}
-				</div>
-			)}
-		</section>
-	);
-}
-
 interface AppLinkTileProps extends AppLinkPreview {
 	t: (key: string) => string;
 }
@@ -170,7 +67,7 @@ interface AppLinkTileProps extends AppLinkPreview {
 function AppLinkTile({ label, url, icon, t }: AppLinkTileProps) {
 	return (
 		<div className="rounded-xl border border-border bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-			<div className="flex min-h-[96px] items-center justify-between gap-4">
+			<div className="flex min-h-24 items-center justify-between gap-4">
 				<div className="flex items-center gap-3">
 					<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface">
 						{icon}
@@ -251,12 +148,11 @@ export function ServiceProviderDashboard() {
 	}, [accessToken, userRole, t]);
 
 	return (
-		<main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-24">
-			<div className="ykb-container">
-				<header className="mb-6">
-					<h1 className="text-3xl font-bold text-primary">{t('provider.dashboard')}</h1>
-					<p className="mt-1 text-sm text-textSecondary">{t('provider.servicesAndPrices')}</p>
-				</header>
+		<div className="ykb-container pt-16">
+			<header className="mb-6">
+				<h1 className="text-3xl font-bold text-primary">{t('provider.dashboard')}</h1>
+				<p className="mt-1 text-sm text-textSecondary">{t('provider.servicesAndPrices')}</p>
+			</header>
 
 				{userRole && userRole !== 'PROVIDER' ? (
 					<div className="ykb-card">
@@ -290,7 +186,7 @@ export function ServiceProviderDashboard() {
 						) : null}
 					</div>
 				) : state.status === 'ready' ? (
-					<div className="grid grid-cols-1 gap-6">					<SubscriptionsSection />
+						<div className="grid grid-cols-1 gap-6">
 						<section className="ykb-card">
 							<div className="text-xs font-semibold uppercase tracking-[0.22em] text-textSecondary">{t('provider.profile')}</div>
 							<div className="mt-3 space-y-2">
@@ -374,11 +270,14 @@ export function ServiceProviderDashboard() {
 									<div className="ykb-alert ykb-alert-info">{t('provider.noServicesYet')}</div>
 								)}
 							</div>
-						</section>
-					</div>
-				) : null}
-			</div>
-		</main>
+				</section>
+
+
+				</div>
+			) : null}
+		</div>
 	);
 }
+
+
 

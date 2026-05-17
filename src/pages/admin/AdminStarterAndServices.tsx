@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader, Image as ImageIcon } from 'lucide-react';
+import { Loader, Image as ImageIcon, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getBackendAuthHeaders } from '../../utils/backendAuth';
 import { uploadServiceImage } from '../../utils/uploadImage';
 
 type StarterGuideCategoryGroup = 'APP' | 'INFRASTRUCTURE' | 'OTHERS';
+type Language = 'en' | 'fr';
+
+type Translation = {
+  language: Language;
+  category: string;
+  description: string | null;
+  subcategories: string[] | null;
+};
 
 type StarterGuideCategory = {
   id: number;
@@ -15,11 +24,16 @@ type StarterGuideCategory = {
   imagePublicId?: string | null;
   isStarterKit?: boolean;
   allowProviderRegistration?: boolean;
+  translations?: Translation[];
   createdAt?: string;
   updatedAt?: string;
 };
 
 type Row = { value: string };
+type LanguageFormState = {
+  en: { title: string; description: string; rows: Row[] };
+  fr: { title: string; description: string; rows: Row[] };
+};
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000/api';
 
@@ -77,16 +91,37 @@ function groupLabel(value: StarterGuideCategoryGroup): string {
 
 
 export function AdminStarterandServices() {
+  const { i18n } = useTranslation();
   const [items, setItems] = useState<StarterGuideCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [createLanguage, setCreateLanguage] = useState<Language>('en');
+  const [editLanguage, setEditLanguage] = useState<Language>('en');
 
-  // Create form state
-  const [serviceTitle, setServiceTitle] = useState('');
+  const activeLanguage = useMemo<Language>(() => (i18n.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en'), [i18n.language]);
+
+  useEffect(() => {
+    setCreateLanguage(activeLanguage);
+    setEditLanguage(activeLanguage);
+  }, [activeLanguage]);
+
+  const getDisplayFields = (item: StarterGuideCategory) => {
+    const translation = item.translations?.find((t) => t.language === activeLanguage);
+
+    const category = translation?.category?.trim() || item.category;
+    const description = translation?.description ?? item.description ?? null;
+    const subcategories = translation?.subcategories ?? item.subcategories ?? null;
+
+    return { category, description, subcategories };
+  };
+
+  // Create form state - with language support
+  const [createLang, setCreateLang] = useState<LanguageFormState>({
+    en: { title: '', description: '', rows: [{ value: '' }] },
+    fr: { title: '', description: '', rows: [{ value: '' }] }
+  });
   const [group, setGroup] = useState<StarterGuideCategoryGroup>('OTHERS');
   const [hasSubcategories, setHasSubcategories] = useState(false);
-  const [createRows, setCreateRows] = useState<Row[]>([{ value: '' }]);
-  const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imagePublicId, setImagePublicId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -97,13 +132,14 @@ export function AdminStarterandServices() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Edit form state
+  // Edit form state - with language support
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editServiceTitle, setEditServiceTitle] = useState('');
+  const [editLang, setEditLang] = useState<LanguageFormState>({
+    en: { title: '', description: '', rows: [{ value: '' }] },
+    fr: { title: '', description: '', rows: [{ value: '' }] }
+  });
   const [editGroup, setEditGroup] = useState<StarterGuideCategoryGroup>('OTHERS');
   const [editHasSubcategories, setEditHasSubcategories] = useState(true);
-  const [editRows, setEditRows] = useState<Row[]>([]);
-  const [editDescription, setEditDescription] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editImagePublicId, setEditImagePublicId] = useState('');
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -130,6 +166,9 @@ export function AdminStarterandServices() {
       if (!res.ok) throw new Error(await readApiErrorMessage(res));
       const json = (await res.json()) as StarterGuideCategory[] | { categories?: StarterGuideCategory[] };
       const list = Array.isArray(json) ? json : Array.isArray((json as any).categories) ? (json as any).categories : [];
+      if ((import.meta as any).env?.DEV) {
+        console.log('[AdminStarterandServices] /starter-guide-categories response', list);
+      }
       setItems(list);
       setLoadError(null);
     } catch (err) {
@@ -150,26 +189,42 @@ export function AdminStarterandServices() {
     const item = itemsById.get(id);
     if (!item) return;
     setEditingId(id);
-    setEditServiceTitle(item.category);
+    setEditLanguage('en');
     setEditGroup(normalizeGroup(item.group));
-    const subcats = Array.isArray(item.subcategories) ? item.subcategories : [];
-    setEditHasSubcategories(subcats.length > 0);
-    setEditRows(subcategoriesToRows(item.subcategories));
-    setEditDescription(item.description || '');
+    setEditHasSubcategories(Array.isArray(item.subcategories) && item.subcategories.length > 0);
     setEditImageUrl(item.imageUrl || '');
     setEditImagePublicId(item.imagePublicId || '');
     setEditIsStarterKit(item.isStarterKit ?? true);
     setEditAllowProviderRegistration(item.allowProviderRegistration ?? false);
     setEditError(null);
+
+    // Load translations
+    const enTrans = item.translations?.find(t => t.language === 'en') || { category: item.category, description: item.description || '', subcategories: item.subcategories };
+    const frTrans = item.translations?.find(t => t.language === 'fr') || { category: '', description: '', subcategories: null };
+    
+    setEditLang({
+      en: { 
+        title: enTrans.category, 
+        description: enTrans.description || '',
+        rows: subcategoriesToRows(enTrans.subcategories)
+      },
+      fr: { 
+        title: frTrans.category, 
+        description: frTrans.description || '',
+        rows: subcategoriesToRows(frTrans.subcategories)
+      }
+    });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditServiceTitle('');
+    setEditLanguage('en');
+    setEditLang({
+      en: { title: '', description: '', rows: [{ value: '' }] },
+      fr: { title: '', description: '', rows: [{ value: '' }] }
+    });
     setEditGroup('OTHERS');
     setEditHasSubcategories(true);
-    setEditRows([]);
-    setEditDescription('');
     setEditImageUrl('');
     setEditImagePublicId('');
     setEditImageFile(null);
@@ -179,16 +234,26 @@ export function AdminStarterandServices() {
     setEditError(null);
   };
 
-  const validate = (value: string, rows: Row[], enabled: boolean): string | null => {
-    if (!value.trim()) return 'Service Title is required.';
+  const validate = (lang: LanguageFormState, enabled: boolean): string | null => {
+    // Check English (required)
+    if (!lang.en.title.trim()) return 'English Service Title is required.';
+    // Check French (required)
+    if (!lang.fr.title.trim()) return 'French Service Title is required.';
+    
     if (!enabled) return null;
-    const subcategories = rowsToSubcategories(rows);
-    if (subcategories.length === 0) return 'Add at least one category or turn off categories.';
+    
+    // Validate subcategories for both languages
+    const enSubcategories = rowsToSubcategories(lang.en.rows);
+    const frSubcategories = rowsToSubcategories(lang.fr.rows);
+    
+    if (enSubcategories.length === 0 || frSubcategories.length === 0) {
+      return 'Add at least one category in both languages or turn off categories.';
+    }
     return null;
   };
 
   const createItem = async () => {
-    const err = validate(serviceTitle, createRows, hasSubcategories);
+    const err = validate(createLang, hasSubcategories);
     if (err) {
       setCreateError(err);
       return;
@@ -220,15 +285,32 @@ export function AdminStarterandServices() {
       }
 
       const payload: any = {
-        category: serviceTitle.trim(),
+        category: createLang.en.title.trim(),
         group,
-        description: description.trim() || null,
+        description: createLang.en.description.trim() || null,
         imageUrl: finalImageUrl.trim() || null,
         imagePublicId: finalImagePublicId.trim() || null,
         isStarterKit,
-        allowProviderRegistration
+        allowProviderRegistration,
+        translations: [
+          {
+            language: 'en',
+            category: createLang.en.title.trim(),
+            description: createLang.en.description.trim() || null,
+            subcategories: hasSubcategories ? rowsToSubcategories(createLang.en.rows) : null
+          },
+          {
+            language: 'fr',
+            category: createLang.fr.title.trim(),
+            description: createLang.fr.description.trim() || null,
+            subcategories: hasSubcategories ? rowsToSubcategories(createLang.fr.rows) : null
+          }
+        ]
       };
-      if (hasSubcategories) payload.subcategories = rowsToSubcategories(createRows);
+      
+      if (hasSubcategories) {
+        payload.subcategories = rowsToSubcategories(createLang.en.rows);
+      }
 
       const res = await fetch(`${API_BASE}/starter-guide-categories`, {
         method: 'POST',
@@ -239,11 +321,15 @@ export function AdminStarterandServices() {
       const json = (await res.json()) as { category?: StarterGuideCategory };
       if (!json.category) throw new Error('Invalid response');
       setItems((prev) => [...prev, json.category!].sort((a, b) => a.id - b.id));
-      setServiceTitle('');
+      
+      // Reset form
+      setCreateLang({
+        en: { title: '', description: '', rows: [{ value: '' }] },
+        fr: { title: '', description: '', rows: [{ value: '' }] }
+      });
+      setCreateLanguage('en');
       setGroup('OTHERS');
       setHasSubcategories(false);
-      setCreateRows([{ value: '' }]);
-      setDescription('');
       setImageUrl('');
       setImagePublicId('');
       setImageFile(null);
@@ -259,7 +345,7 @@ export function AdminStarterandServices() {
 
   const saveEdit = async () => {
     if (editingId == null) return;
-    const err = validate(editServiceTitle, editRows, editHasSubcategories);
+    const err = validate(editLang, editHasSubcategories);
     if (err) {
       setEditError(err);
       return;
@@ -286,16 +372,34 @@ export function AdminStarterandServices() {
       }
 
       const payload: any = {
-        category: editServiceTitle.trim(),
+        category: editLang.en.title.trim(),
         group: editGroup,
-        description: editDescription.trim() || null,
+        description: editLang.en.description.trim() || null,
         imageUrl: finalImageUrl.trim() || null,
         imagePublicId: finalImagePublicId.trim() || null,
         isStarterKit: editIsStarterKit,
-        allowProviderRegistration: editAllowProviderRegistration
+        allowProviderRegistration: editAllowProviderRegistration,
+        translations: [
+          {
+            language: 'en',
+            category: editLang.en.title.trim(),
+            description: editLang.en.description.trim() || null,
+            subcategories: editHasSubcategories ? rowsToSubcategories(editLang.en.rows) : []
+          },
+          {
+            language: 'fr',
+            category: editLang.fr.title.trim(),
+            description: editLang.fr.description.trim() || null,
+            subcategories: editHasSubcategories ? rowsToSubcategories(editLang.fr.rows) : []
+          }
+        ]
       };
-      if (editHasSubcategories) payload.subcategories = rowsToSubcategories(editRows);
-      else payload.subcategories = [];
+      
+      if (editHasSubcategories) {
+        payload.subcategories = rowsToSubcategories(editLang.en.rows);
+      } else {
+        payload.subcategories = [];
+      }
 
       const res = await fetch(`${API_BASE}/starter-guide-categories/${editingId}`, {
         method: 'PATCH',
@@ -376,20 +480,124 @@ export function AdminStarterandServices() {
             <h2 className="text-2xl font-bold text-primary mb-4">Create Service</h2>
 
             <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Language Tabs */}
+                <div className="flex gap-2 border-b border-border">
+                  {(['en', 'fr'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setCreateLanguage(lang)}
+                      className={`px-4 py-2 font-semibold transition-colors ${
+                        createLanguage === lang
+                          ? 'text-secondary border-b-2 border-secondary -mb-1'
+                          : 'text-textSecondary hover:text-primary'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4" />
+                        {lang === 'en' ? 'English' : 'Français'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Language-specific inputs */}
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-primary mb-2">Service Title *</label>
+                    <label className="block text-sm font-semibold text-primary mb-2">Service Title * ({createLanguage === 'en' ? 'English' : 'French'})</label>
                     <input
                       className="ykb-field"
-                      placeholder="e.g., Healthcare Services"
-                      value={serviceTitle}
+                      placeholder={createLanguage === 'en' ? 'e.g., Healthcare Services' : 'ex. Services de santé'}
+                      value={createLang[createLanguage].title}
                       onChange={(e) => {
-                        setServiceTitle(e.target.value);
+                        setCreateLang(prev => ({
+                          ...prev,
+                          [createLanguage]: { ...prev[createLanguage], title: e.target.value }
+                        }));
                         setCreateError(null);
                       }}
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-semibold text-primary mb-2">Description ({createLanguage === 'en' ? 'English' : 'French'})</label>
+                    <textarea
+                      className="ykb-field min-h-[100px]"
+                      placeholder={createLanguage === 'en' ? 'Describe this service...' : 'Décrivez ce service...'}
+                      value={createLang[createLanguage].description}
+                      onChange={(e) => {
+                        setCreateLang(prev => ({
+                          ...prev,
+                          [createLanguage]: { ...prev[createLanguage], description: e.target.value }
+                        }));
+                        setCreateError(null);
+                      }}
+                    />
+                  </div>
+
+                  {hasSubcategories && (
+                    <div>
+                      <label className="block text-sm font-semibold text-primary mb-2">
+                        Categories ({createLanguage === 'en' ? 'English' : 'French'})
+                      </label>
+                      <div className="space-y-2">
+                        {createLang[createLanguage].rows.map((row, idx) => (
+                          <div key={`create-${createLanguage}-${idx}`} className="flex gap-2">
+                            <input
+                              className="ykb-field flex-1"
+                              placeholder={createLanguage === 'en' ? 'e.g., Hospitals' : 'ex. Hôpitaux'}
+                              value={row.value}
+                              onChange={(e) => {
+                                setCreateLang(prev => ({
+                                  ...prev,
+                                  [createLanguage]: {
+                                    ...prev[createLanguage],
+                                    rows: prev[createLanguage].rows.map((r, i) => i === idx ? { value: e.target.value } : r)
+                                  }
+                                }));
+                                setCreateError(null);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="ykb-button-outline h-[46px] px-3"
+                              onClick={() => {
+                                setCreateLang(prev => ({
+                                  ...prev,
+                                  [createLanguage]: {
+                                    ...prev[createLanguage],
+                                    rows: prev[createLanguage].rows.filter((_, i) => i !== idx)
+                                  }
+                                }));
+                              }}
+                              disabled={createLang[createLanguage].rows.length <= 1}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="ykb-button-outline px-3 py-2 text-sm"
+                          onClick={() => {
+                            setCreateLang(prev => ({
+                              ...prev,
+                              [createLanguage]: {
+                                ...prev[createLanguage],
+                                rows: [...prev[createLanguage].rows, { value: '' }]
+                              }
+                            }));
+                          }}
+                        >
+                          Add category
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-primary mb-2">Group</label>
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
@@ -424,24 +632,9 @@ export function AdminStarterandServices() {
                       })}
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-primary mb-2">Description</label>
-                  <textarea
-                    className="ykb-field min-h-[100px]"
-                    placeholder="Describe this service..."
-                    value={description}
-                    onChange={(e) => {
-                      setDescription(e.target.value);
-                      setCreateError(null);
-                    }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-1">
-                    <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer">
+                  <div>
+                    <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer mb-2">
                       <input
                         type="checkbox"
                         checked={hasSubcategories}
@@ -452,49 +645,6 @@ export function AdminStarterandServices() {
                       />
                       Has Categories
                     </label>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-primary mb-2">
-                      {hasSubcategories ? 'Categories' : 'Categories (disabled)'}
-                    </label>
-                    {hasSubcategories ? (
-                      <div className="space-y-2">
-                        {createRows.map((row, idx) => (
-                          <div key={`create-${idx}`} className="flex gap-2">
-                            <input
-                              className="ykb-field flex-1"
-                              placeholder="e.g., Hospitals"
-                              value={row.value}
-                              onChange={(e) => {
-                                const next = [...createRows];
-                                next[idx] = { value: e.target.value };
-                                setCreateRows(next);
-                                setCreateError(null);
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="ykb-button-outline h-[46px] px-3"
-                              onClick={() => setCreateRows((prev) => prev.filter((_, i) => i !== idx))}
-                              disabled={createRows.length <= 1}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          className="ykb-button-outline px-3 py-2 text-sm"
-                          onClick={() => setCreateRows((prev) => [...prev, { value: '' }])}
-                        >
-                          Add category
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-gray-400 text-sm">Enable to add categories</p>
-                    )}
                   </div>
                 </div>
 
@@ -599,17 +749,18 @@ export function AdminStarterandServices() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {items.map((item) => {
                   const isEditing = editingId === item.id;
-                  const subcategories = Array.isArray(item.subcategories) ? item.subcategories : [];
+                  const display = getDisplayFields(item);
+                  const subcategories = Array.isArray(display.subcategories) ? display.subcategories : [];
                   return (
                     <div key={item.id} className="ykb-card">
                       {!isEditing ? (
                         <>
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
-                              <h3 className="text-xl font-bold text-primary">{item.category}</h3>
+                              <h3 className="text-xl font-bold text-primary">{display.category}</h3>
                               <p className="text-textSecondary text-sm">ID: {item.id}</p>
-                              {item.description && (
-                                <p className="mt-2 text-sm text-textSecondary">{item.description}</p>
+                              {display.description && (
+                                <p className="mt-2 text-sm text-textSecondary">{display.description}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -680,19 +831,122 @@ export function AdminStarterandServices() {
                           </div>
 
                           <div className="mt-4 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Language Tabs */}
+                            <div className="flex gap-2 border-b border-border">
+                              {(['en', 'fr'] as const).map((lang) => (
+                                <button
+                                  key={lang}
+                                  type="button"
+                                  onClick={() => setEditLanguage(lang)}
+                                  className={`px-4 py-2 font-semibold transition-colors ${
+                                    editLanguage === lang
+                                      ? 'text-secondary border-b-2 border-secondary -mb-1'
+                                      : 'text-textSecondary hover:text-primary'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Globe className="w-4 h-4" />
+                                    {lang === 'en' ? 'English' : 'Français'}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Language-specific edit inputs */}
+                            <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-semibold text-primary mb-2">Service Title *</label>
+                                <label className="block text-sm font-semibold text-primary mb-2">Service Title * ({editLanguage === 'en' ? 'English' : 'French'})</label>
                                 <input
                                   className="ykb-field"
-                                  value={editServiceTitle}
+                                  value={editLang[editLanguage].title}
                                   onChange={(e) => {
-                                    setEditServiceTitle(e.target.value);
+                                    setEditLang(prev => ({
+                                      ...prev,
+                                      [editLanguage]: { ...prev[editLanguage], title: e.target.value }
+                                    }));
                                     setEditError(null);
                                   }}
                                 />
                               </div>
 
+                              <div>
+                                <label className="block text-sm font-semibold text-primary mb-2">Description ({editLanguage === 'en' ? 'English' : 'French'})</label>
+                                <textarea
+                                  className="ykb-field min-h-[100px]"
+                                  value={editLang[editLanguage].description}
+                                  onChange={(e) => {
+                                    setEditLang(prev => ({
+                                      ...prev,
+                                      [editLanguage]: { ...prev[editLanguage], description: e.target.value }
+                                    }));
+                                    setEditError(null);
+                                  }}
+                                />
+                              </div>
+
+                              {editHasSubcategories && (
+                                <div>
+                                  <label className="block text-sm font-semibold text-primary mb-2">
+                                    Categories ({editLanguage === 'en' ? 'English' : 'French'})
+                                  </label>
+                                  <div className="space-y-2">
+                                    {editLang[editLanguage].rows.map((row, idx) => (
+                                      <div key={`edit-${editLanguage}-${idx}`} className="flex gap-2">
+                                        <input
+                                          className="ykb-field flex-1"
+                                          placeholder={editLanguage === 'en' ? 'e.g., Hospitals' : 'ex. Hôpitaux'}
+                                          value={row.value}
+                                          onChange={(e) => {
+                                            setEditLang(prev => ({
+                                              ...prev,
+                                              [editLanguage]: {
+                                                ...prev[editLanguage],
+                                                rows: prev[editLanguage].rows.map((r, i) => i === idx ? { value: e.target.value } : r)
+                                              }
+                                            }));
+                                            setEditError(null);
+                                          }}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="ykb-button-outline h-[46px] px-3"
+                                          onClick={() => {
+                                            setEditLang(prev => ({
+                                              ...prev,
+                                              [editLanguage]: {
+                                                ...prev[editLanguage],
+                                                rows: prev[editLanguage].rows.filter((_, i) => i !== idx)
+                                              }
+                                            }));
+                                          }}
+                                          disabled={editLang[editLanguage].rows.length <= 1}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    ))}
+
+                                    <button
+                                      type="button"
+                                      className="ykb-button-outline px-3 py-2 text-sm"
+                                      onClick={() => {
+                                        setEditLang(prev => ({
+                                          ...prev,
+                                          [editLanguage]: {
+                                            ...prev[editLanguage],
+                                            rows: [...prev[editLanguage].rows, { value: '' }]
+                                          }
+                                        }));
+                                      }}
+                                    >
+                                      Add category
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-sm font-semibold text-primary mb-2">Group</label>
                                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
@@ -727,23 +981,9 @@ export function AdminStarterandServices() {
                                   })}
                                 </div>
                               </div>
-                            </div>
 
-                            <div>
-                              <label className="block text-sm font-semibold text-primary mb-2">Description</label>
-                              <textarea
-                                className="ykb-field min-h-[100px]"
-                                value={editDescription}
-                                onChange={(e) => {
-                                  setEditDescription(e.target.value);
-                                  setEditError(null);
-                                }}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="md:col-span-1">
-                                <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer">
+                              <div>
+                                <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer mb-2">
                                   <input
                                     type="checkbox"
                                     checked={editHasSubcategories}
@@ -754,49 +994,6 @@ export function AdminStarterandServices() {
                                   />
                                   Has Categories
                                 </label>
-                              </div>
-
-                              <div className="md:col-span-2">
-                                <label className="block text-sm font-semibold text-primary mb-2">
-                                  {editHasSubcategories ? 'Categories' : 'Categories (disabled)'}
-                                </label>
-                                {editHasSubcategories ? (
-                                  <div className="space-y-2">
-                                    {editRows.map((row, idx) => (
-                                      <div key={`edit-${idx}`} className="flex gap-2">
-                                        <input
-                                          className="ykb-field flex-1"
-                                          placeholder="e.g., Hospitals"
-                                          value={row.value}
-                                          onChange={(e) => {
-                                            const next = [...editRows];
-                                            next[idx] = { value: e.target.value };
-                                            setEditRows(next);
-                                            setEditError(null);
-                                          }}
-                                        />
-                                        <button
-                                          type="button"
-                                          className="ykb-button-outline h-[46px] px-3"
-                                          onClick={() => setEditRows((prev) => prev.filter((_, i) => i !== idx))}
-                                          disabled={editRows.length <= 1}
-                                        >
-                                          Remove
-                                        </button>
-                                      </div>
-                                    ))}
-
-                                    <button
-                                      type="button"
-                                      className="ykb-button-outline px-3 py-2 text-sm"
-                                      onClick={() => setEditRows((prev) => [...prev, { value: '' }])}
-                                    >
-                                      Add category
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <p className="text-gray-400 text-sm">Enable to add categories</p>
-                                )}
                               </div>
                             </div>
 

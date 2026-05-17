@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BackendAuthError, getBackendSession, API_BASE, getBackendAuthHeaders } from '../../utils/backendAuth';
+import { getFriendlyRequestError } from '../../utils/friendlyErrors';
 import {
 	addMyBackendRequestNote,
 	fetchMyBackendRequests,
@@ -78,6 +79,11 @@ export function StarterRequests() {
 	const [updatingId, setUpdatingId] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 
+	const getFriendlyActionError = (err: unknown, action: string) => {
+		if (err instanceof Error && err.message.trim().length > 0) return err.message;
+		return getFriendlyRequestError({ error: err, action });
+	};
+
 	const load = useCallback(async () => {
 		if (!isAuthenticated) {
 			setIsLoading(false);
@@ -95,7 +101,7 @@ export function StarterRequests() {
 			const status = err instanceof BackendAuthError ? err.status : undefined;
 			if (status === 401) setError('Please login to view your requests.');
 			else if (status === 0 && err instanceof BackendAuthError) setError(err.message);
-			else setError(err instanceof Error ? err.message : 'Could not load your requests.');
+			else setError(getFriendlyActionError(err, 'load your requests'));
 			setRequests([]);
 		} finally {
 			setIsLoading(false);
@@ -125,7 +131,12 @@ export function StarterRequests() {
 				});
 
 				if (!res.ok) {
-					throw new Error(`Request failed (${res.status})`);
+					throw new Error(
+						getFriendlyRequestError({
+							status: res.status,
+							action: 'mark this request as resolved',
+						})
+					);
 				}
 
 				const json = (await res.json()) as { request?: BackendRequest };
@@ -134,7 +145,7 @@ export function StarterRequests() {
 				}
 			} catch (err) {
 				setRequests([...updated]);
-				setActionError(err instanceof Error ? err.message : 'Could not mark as resolved.');
+				setActionError(getFriendlyActionError(err, 'mark this request as resolved'));
 			} finally {
 				setUpdatingId(null);
 			}
@@ -154,7 +165,7 @@ export function StarterRequests() {
 				const status = err instanceof BackendAuthError ? err.status : undefined;
 				if (status === 401) setActionError('Please login again to rate this request.');
 				else if (status === 0 && err instanceof BackendAuthError) setActionError(err.message);
-				else setActionError(err instanceof Error ? err.message : 'Could not submit rating.');
+				else setActionError(getFriendlyActionError(err, 'submit your rating'));
 			} finally {
 				setSavingId(null);
 			}
@@ -189,6 +200,13 @@ export function StarterRequests() {
 						<div className="ykb-card p-6 text-center">
 							<h2 className="text-2xl font-bold text-primary mb-2">Could not load requests</h2>
 							<p className="text-textSecondary">{error}</p>
+							<button
+								type="button"
+								onClick={() => void load()}
+								className="mt-4 ykb-button-outline px-4 py-2"
+							>
+								Try again
+							</button>
 						</div>
 					) : isLoading ? (
 						<div className="ykb-card p-6 text-center">
@@ -310,7 +328,7 @@ export function StarterRequests() {
 																	const status = err instanceof BackendAuthError ? err.status : undefined;
 																	if (status === 401) setActionError('Please login again to edit this request.');
 																	else if (status === 0 && err instanceof BackendAuthError) setActionError(err.message);
-																	else setActionError(err instanceof Error ? err.message : 'Could not save changes.');
+																	else setActionError(getFriendlyActionError(err, 'save your changes'));
 																} finally {
 																	setSavingId(null);
 																}
@@ -458,7 +476,7 @@ export function StarterRequests() {
 																			if (status === 401) setActionError('Please login again to add a note.');
 																			else if (status === 0 && err instanceof BackendAuthError)
 																				setActionError(err.message);
-																			else setActionError(err instanceof Error ? err.message : 'Could not add note.');
+																			else setActionError(getFriendlyActionError(err, 'save your note'));
 																		} finally {
 																			setSavingId(null);
 																		}

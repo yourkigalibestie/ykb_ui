@@ -117,3 +117,42 @@ export async function updateProviderMeProfile(body: UpdateProviderMeBody): Promi
 
   return json.provider;
 }
+
+export type UploadResult = {
+  url: string;
+  publicId: string;
+};
+
+export async function uploadProviderProfileImage(file: File): Promise<UploadResult> {
+  const session = getBackendSession();
+  if (!session?.accessToken) {
+    throw new BackendAuthError('Not authenticated.', 401);
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/uploads/provider-profile-image`, {
+      method: 'POST',
+      headers: {
+        ...getBackendAuthHeaders(),
+      },
+      body: formData,
+    });
+  } catch {
+    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  }
+
+  if (!res.ok) {
+    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+  }
+
+  const json = (await res.json()) as { upload?: UploadResult };
+  if (!json?.upload?.url || !json?.upload?.publicId) {
+    throw new BackendAuthError('Invalid response from backend.');
+  }
+
+  return json.upload;
+}

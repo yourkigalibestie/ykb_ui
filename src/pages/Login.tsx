@@ -1,8 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { login as loginMock, seedAuthIfEmpty } from '../utils/auth';
 import { BackendAuthError, loginBackend } from '../utils/backendAuth';
 import logo from '../assets/images/logo.png';
 
@@ -40,11 +39,6 @@ export function Login() {
     });
   };
 
-  useEffect(() => {
-    // Helps you test quickly without registering first.
-    seedAuthIfEmpty();
-  }, []);
-
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -77,17 +71,10 @@ export function Login() {
         setFieldErrors({ email: t('auth.checkEmail'), password: t('auth.incorrectCredentials') });
       }
 
-      // If the backend says "invalid credentials", fall back to the existing mocked auth
-      // so the demo accounts still work.
-      if (status === 401 || status === 404) {
-        const result = loginMock(email, password);
-        if (result.ok === false) {
-          setError(result.message);
-          return;
-        }
-
-        setSuccess(true);
-        setTimeout(() => navigate(safeNext ?? '/profile'), 400);
+      // Only fall back to the mocked auth when the backend is unreachable.
+      // This avoids masking real backend errors like "Invalid credentials".
+      if (status === 0 && err instanceof BackendAuthError) {
+        setError(err.message);
         return;
       }
 
@@ -98,11 +85,6 @@ export function Login() {
 
       if (status === 429) {
         setError(t('auth.tooManyAttempts'));
-        return;
-      }
-
-      if (status === 0 && err instanceof BackendAuthError) {
-        setError(err.message);
         return;
       }
 

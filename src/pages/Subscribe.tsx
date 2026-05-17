@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CreditCard, Smartphone, BadgeCheck, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
 import { API_BASE,getBackendAuthHeaders, getBackendAccessToken  } from '../utils/backendAuth';
+import { getFriendlyRequestError } from '../utils/friendlyErrors';
 
 type PaymentMethod = 'card' | 'mobileMoney';
 type CardBrand = 'Visa' | 'Mastercard' | 'Unknown';
@@ -43,11 +44,15 @@ function brandBadgeClasses(brand: CardBrand): string {
 export function Subscribe() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { planId, currency: initialCurrency } = (location.state as any) || {};
+  const state = (location.state as { planId?: string; currency?: 'RWF' | 'USD' } | null) ?? null;
+  const planId = state?.planId;
+  const initialCurrency = state?.currency;
 
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [planLoading, setPlanLoading] = useState(true);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(Boolean(planId));
+  const [planError, setPlanError] = useState<string | null>(
+    planId ? null : 'No plan selected. Please select a plan first.'
+  );
   
   const [method, setMethod] = useState<PaymentMethod>('card');
   const [currency, setCurrency] = useState<'RWF' | 'USD'>(initialCurrency || 'RWF');
@@ -77,8 +82,6 @@ export function Subscribe() {
   // Fetch plan details if planId is provided
   useEffect(() => {
     if (!planId) {
-      setPlanLoading(false);
-      setPlanError('No plan selected. Please select a plan first.');
       return;
     }
 
@@ -94,13 +97,22 @@ export function Subscribe() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch plan details');
+          throw new Error(
+            getFriendlyRequestError({
+              status: response.status,
+              action: 'load plan details',
+            })
+          );
         }
 
         const data = await response.json();
         setPlan(data.plan);
       } catch (err) {
-        setPlanError(err instanceof Error ? err.message : 'An error occurred');
+        setPlanError(
+          err instanceof Error && err.message.trim().length > 0
+            ? err.message
+            : getFriendlyRequestError({ error: err, action: 'load plan details' })
+        );
       } finally {
         setPlanLoading(false);
       }
@@ -156,8 +168,21 @@ export function Subscribe() {
       });
 
       if (!subscriptionResponse.ok) {
-        const errorData = await subscriptionResponse.json();
-        throw new Error(errorData.message || 'Failed to create subscription');
+        let serverMessage = '';
+        try {
+          const errorData = await subscriptionResponse.json();
+          serverMessage = typeof errorData?.message === 'string' ? errorData.message : '';
+        } catch {
+          // ignore parse errors and fallback to friendly message
+        }
+
+        throw new Error(
+          serverMessage ||
+            getFriendlyRequestError({
+              status: subscriptionResponse.status,
+              action: 'start your subscription',
+            })
+        );
       }
 
       const result = await subscriptionResponse.json();
@@ -224,7 +249,11 @@ export function Subscribe() {
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(
+        err instanceof Error && err.message.trim().length > 0
+          ? err.message
+          : getFriendlyRequestError({ error: err, action: 'start your subscription' })
+      );
     } finally {
       setSubmitting(false);
     }
@@ -261,7 +290,7 @@ export function Subscribe() {
         <section className="ykb-section bg-dark-light">
           <div className="ykb-container max-w-3xl mx-auto">
             <div className="ykb-card flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 shrink-0" />
               <div>
                 <p className="font-semibold">{planError || 'Plan not found'}</p>
                 <button
@@ -346,7 +375,7 @@ export function Subscribe() {
                 {paymentWaiting ? (
                   <div className="space-y-5">
                     <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-5">
-                      <Loader className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1 animate-spin" />
+                      <Loader className="w-6 h-6 text-yellow-600 shrink-0 mt-1 animate-spin" />
                       <div>
                         <h2 className="text-2xl font-bold text-yellow-700">Payment in Progress</h2>
                         <p className="text-yellow-600 mt-1">
@@ -388,7 +417,7 @@ export function Subscribe() {
                   <>
                     {error && (
                       <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <AlertCircle className="w-5 h-5 shrink-0" />
                         <span>{error}</span>
                       </div>
                     )}
@@ -700,7 +729,7 @@ export function Subscribe() {
                 ) : submitted ? (
                   <div className="space-y-5">
                     <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/10 p-5">
-                      <BadgeCheck className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                      <BadgeCheck className="w-6 h-6 text-primary shrink-0 mt-1" />
                       <div>
                         <h2 className="text-2xl font-bold text-primary">Subscription Created!</h2>
                         <p className="text-textSecondary">

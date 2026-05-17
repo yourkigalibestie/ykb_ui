@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Zap, AlertCircle } from 'lucide-react';
 import { API_BASE, getBackendAuthHeaders, getBackendAccessToken } from '../utils/backendAuth';
+import { getFriendlyRequestError } from '../utils/friendlyErrors';
 
 interface Plan {
   id: string;
@@ -20,10 +21,10 @@ export function Plans() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<'RWF' | 'USD'>('RWF');
 
-  useEffect(() => {
-    const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
       try {
         setLoading(true);
+        setError(null);
         const token = getBackendAccessToken();
         if (!token) {
           navigate('/login');
@@ -38,21 +39,35 @@ export function Plans() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch plans');
+          throw new Error(
+            getFriendlyRequestError({
+              status: response.status,
+              action: 'load plans',
+            })
+          );
         }
 
         const data = await response.json();
         setPlans(data.plans || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(
+          err instanceof Error && err.message.trim().length > 0
+            ? err.message
+            : getFriendlyRequestError({ error: err, action: 'load plans' })
+        );
         console.error('Error fetching plans:', err);
       } finally {
         setLoading(false);
       }
-    };
+    }, [navigate]);
 
-    fetchPlans();
-  }, [navigate]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchPlans();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [fetchPlans]);
 
   const handleSelectPlan = (planId: string) => {
     navigate('/subscribe', { state: { planId, currency: selectedCurrency } });
@@ -109,8 +124,17 @@ export function Plans() {
           {/* Error State */}
           {error && (
             <div className="mb-8 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{error}</span>
+              <AlertCircle className="w-5 h-5" />
+              <div>
+                <p>{error}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchPlans()}
+                  className="mt-2 text-red-700 underline underline-offset-2"
+                >
+                  Try again
+                </button>
+              </div>
             </div>
           )}
 
@@ -151,7 +175,7 @@ export function Plans() {
                     </div>
 
                     {/* Features List */}
-                    <div className="mb-8 flex-grow">
+                    <div className="mb-8">
                       <p className="text-sm font-semibold text-primary mb-4">
                         Includes:
                       </p>
@@ -161,7 +185,7 @@ export function Plans() {
                             key={idx}
                             className="flex items-start gap-3 text-sm text-textSecondary"
                           >
-                            <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
+                            <CheckCircle2 className="w-5 h-5 text-secondary mt-0.5" />
                             <span>{feature}</span>
                           </li>
                         ))}

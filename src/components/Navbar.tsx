@@ -14,11 +14,12 @@ export function Navbar() {
     const location = useLocation();
 
     const backendSession = getBackendSession();
+    const isBackendAdminUser = isBackendAdmin();
     const isBackendProvider = backendSession?.user?.role === 'PROVIDER';
     const isBackendCustomer = backendSession?.user?.role === 'CUSTOMER';
     const isLoggedIn = Boolean(backendSession);
 
-    const dashboardPath = isBackendAdmin() ? '/admin' : isBackendProvider ? '/provider' : '/profile';
+    const dashboardPath = isBackendAdminUser ? '/admin' : isBackendProvider ? '/provider' : '/profile';
 
     useEffect(() => {
         const handleScroll = () => {
@@ -37,11 +38,11 @@ export function Navbar() {
     const navLinks = [
         { path: '/', label: t('navigation.home') },
         { path: '/services', label: t('navigation.services') },
-        { path: '/guide', label: 'Starter Guide' },
-        { path: '/subscribe', label: t('navigation.subscribe') },
+        { path: '/guide', label: t('navigation.guide') },
+        // { path: '/subscribe', label: t('navigation.subscribe') },
         ...(isLoggedIn
             ? [
-                  ...(isBackendCustomer ? [] : [{ path: profilePath, label: t('common.profile') }]),
+                                    ...(isBackendCustomer || isBackendAdminUser ? [] : [{ path: profilePath, label: t('common.profile') }]),
                   { path: dashboardPath, label: t('common.dashboard') },
               ]
             : [

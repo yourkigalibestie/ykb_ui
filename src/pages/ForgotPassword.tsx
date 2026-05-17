@@ -201,6 +201,11 @@ export function ForgotPassword() {
 
               {step === 'verify' && (
                 <form onSubmit={verifyCode} className="space-y-6">
+                  <div className="ykb-alert ykb-alert-info">
+                    <p className="font-semibold mb-1">Verification code sent</p>
+                    <p className="text-sm">We've sent a verification code to <span className="font-semibold">{email}</span></p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold text-primary mb-1.5" htmlFor="code">
                       Verification Code
@@ -232,6 +237,40 @@ export function ForgotPassword() {
                   >
                     {loading ? 'Verifying...' : 'Verify Code'}
                   </button>
+
+                  <div className="text-center">
+                    <p className="text-sm text-textSecondary mb-3">Didn't receive the code?</p>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        setLoading(true);
+                        try {
+                          const response = await fetch(`${API_BASE}/auth/send-reset-code`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email }),
+                          });
+
+                          if (response.ok) {
+                            setSuccess(true);
+                            setTimeout(() => setSuccess(false), 3000);
+                          } else {
+                            const data = await response.json();
+                            setError(data.error?.message || 'Failed to resend code');
+                          }
+                        } catch (err) {
+                          setError('Failed to resend code. Please try again.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="text-secondary hover:text-accent font-semibold text-sm transition disabled:opacity-50"
+                    >
+                      {loading ? 'Sending...' : 'Resend Code'}
+                    </button>
+                  </div>
 
                   <button
                     type="button"

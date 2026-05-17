@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpenText, CircleHelp, ClipboardList, Compass, ExternalLink, Languages, Smartphone } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight,  Check, ClipboardList, Copy, ExternalLink, Languages, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ServiceCard } from '../components/ServiceCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { openWhatsApp } from '../utils/whatsapp';
-
-type PublicService = {
-  id: number;
-  title: string;
-  description: string;
-  imageUrl?: string | null;
-  imagePublicId?: string | null;
-};
+import appStoreIcon from '../assets/icons/appstore.png';
+import playStoreIcon from '../assets/icons/playstore.png';
+import webAppIcon from '../assets/icons/webApp.png';
+import { getFriendlyRequestError } from '../utils/friendlyErrors';
+import { createServiceAnchorId } from '../utils/serviceAnchors';
 
 type Language = {
   id: number;
@@ -22,12 +19,26 @@ type Language = {
 
 type StarterGuideCategoryGroup = 'APP' | 'INFRASTRUCTURE' | 'OTHERS';
 
+type TranslationLanguage = 'en' | 'fr';
+
+type StarterGuideCategoryTranslation = {
+  language: TranslationLanguage;
+  category: string;
+  description: string | null;
+  subcategories: string[] | null;
+};
+
 type StarterGuideCategory = {
   id: number;
   category: string;
   group?: StarterGuideCategoryGroup | null;
   subcategories: string[] | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  imagePublicId?: string | null;
   isStarterKit?: boolean;
+  allowProviderRegistration?: boolean;
+  translations?: StarterGuideCategoryTranslation[];
 };
 
 type ProviderServiceOffering = {
@@ -56,21 +67,6 @@ type ProviderApp = {
   appStoreUrl: string | null;
 };
 
-const FALLBACK_GUIDE_BLOCKS = [
-  {
-    title: 'First 24 Hours',
-    items: ['Get a SIM card (MTN/Airtel)', 'Set up Mobile Money', 'Exchange currency safely'],
-  },
-  {
-    title: 'Emergency Contacts',
-    items: ['Police: 112', 'Ambulance: 911', 'Medical emergency: 912'],
-  },
-  {
-    title: 'Internet & Housing',
-    items: ['Mobile data plans are affordable', 'Fiber options available', 'Apartments and Airbnb options in Kigali'],
-  },
-];
-
 type ApiErrorResponse = {
   error?: {
     message?: unknown;
@@ -78,17 +74,20 @@ type ApiErrorResponse = {
 };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
 
-async function readApiErrorMessage(response: Response): Promise<string> {
+async function readApiErrorStatus(response: Response): Promise<number> {
   try {
     const data = (await response.json()) as ApiErrorResponse;
     const message = data?.error?.message;
-    if (typeof message === 'string' && message.trim().length > 0) return message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return response.status;
+    }
   } catch {
     // ignore
   }
 
-  return `Request failed (${response.status})`;
+  return response.status;
 }
 
 function normalizeHttpUrl(value: unknown): string | null {
@@ -131,59 +130,114 @@ function parseServiceOfferings(value: unknown): ProviderServiceOffering[] {
 }
 
 export function Services() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [services, setServices] = useState<PublicService[]>([]);
+  const location = useLocation();
+  const [services, setServices] = useState<StarterGuideCategory[]>([]);
+  const [starterKitServices, setStarterKitServices] = useState<StarterGuideCategory[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
-  const [guideCategories, setGuideCategories] = useState<StarterGuideCategory[]>([]);
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  const activeLanguage = useMemo<TranslationLanguage>(
+    () => (i18n.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en'),
+    [i18n.language]
+  );
+
+  const getDisplayFields = (item: StarterGuideCategory) => {
+    const translation = item.translations?.find((t) => t.language === activeLanguage);
+
+    const category = translation?.category?.trim() || item.category;
+    const description = translation?.description ?? item.description ?? '';
+
+    return { category, description };
+  };
+
+  const getEnglishFields = (item: StarterGuideCategory) => {
+    const translation = item.translations?.find((t) => t.language === 'en');
+
+    const category = translation?.category?.trim() || item.category;
+    const description = translation?.description ?? item.description ?? '';
+
+    return { category, description };
+  };
 
   const sectionLinks = [
     { id: 'all-services', label: t('services.allServices') },
     { id: 'translator', label: t('services.translator') },
     { id: 'apps', label: t('services.apps') },
-    { id: 'starter-guide', label: t('services.starterGuide') },
   ];
 
-  useEffect(() => {
-    let mounted = true;
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedLink(url);
+      setTimeout(() => setCopiedLink(null), 2000);
+    });
+  };
 
-    const load = async () => {
+  const load = useCallback(async () => {
       setStatus('loading');
       setError(null);
 
       try {
-        const [servicesResult, languagesResult, categoriesResult, providersResult] = await Promise.allSettled([
-          fetch(`${API_BASE}/services`),
+        const [categoriesResult, starterKitResult, languagesResult, providersResult] = await Promise.allSettled([
+          fetch(`${API_BASE}/starter-guide-categories?isStarterKit=false`),
+          fetch(`${API_BASE}/starter-guide-categories?isStarterKit=true`),
           fetch(`${API_BASE}/languages`),
-          fetch(`${API_BASE}/starter-guide-categories`),
           fetch(`${API_BASE}/providers`),
         ]);
 
-        if (servicesResult.status !== 'fulfilled') {
-          throw new Error('Could not load services.');
+        if (categoriesResult.status !== 'fulfilled') {
+          throw new Error(
+            getFriendlyRequestError({
+              error: categoriesResult.reason,
+              action: 'load services',
+            })
+          );
         }
 
-        const servicesResponse = servicesResult.value;
-        if (!servicesResponse.ok) {
-          throw new Error(await readApiErrorMessage(servicesResponse));
+        const categoriesResponse = categoriesResult.value;
+        if (!categoriesResponse.ok) {
+          const status = await readApiErrorStatus(categoriesResponse);
+          throw new Error(
+            getFriendlyRequestError({
+              status,
+              action: 'load services',
+            })
+          );
         }
 
-        const servicesJson = (await servicesResponse.json()) as { services?: PublicService[] };
-        const servicesList = Array.isArray(servicesJson.services) ? servicesJson.services : [];
+        const categoriesJson = (await categoriesResponse.json()) as
+          | StarterGuideCategory[]
+          | { categories?: StarterGuideCategory[] };
+        const categoriesList = Array.isArray(categoriesJson)
+          ? categoriesJson
+          : Array.isArray(categoriesJson.categories)
+            ? categoriesJson.categories
+            : [];
+
+        // Show only non-starter-kit services
+        const servicesList = categoriesList.filter((category) => category.isStarterKit === false);
+
+        let starterKitList: StarterGuideCategory[] = [];
+        if (starterKitResult && starterKitResult.status === 'fulfilled' && starterKitResult.value.ok) {
+          const starterKitJson = (await starterKitResult.value.json()) as
+            | StarterGuideCategory[]
+            | { categories?: StarterGuideCategory[] };
+          const starterKitCategories = Array.isArray(starterKitJson)
+            ? starterKitJson
+            : Array.isArray(starterKitJson.categories)
+              ? starterKitJson.categories
+              : [];
+          starterKitList = starterKitCategories.filter((category) => category.isStarterKit === true);
+        }
 
         let languagesList: Language[] = [];
         if (languagesResult.status === 'fulfilled' && languagesResult.value.ok) {
           const languagesJson = (await languagesResult.value.json()) as { languages?: Language[] };
           languagesList = Array.isArray(languagesJson.languages) ? languagesJson.languages : [];
-        }
-
-        let categoriesList: StarterGuideCategory[] = [];
-        if (categoriesResult.status === 'fulfilled' && categoriesResult.value.ok) {
-          const categoriesJson = (await categoriesResult.value.json()) as { categories?: StarterGuideCategory[] };
-          categoriesList = Array.isArray(categoriesJson.categories) ? categoriesJson.categories : [];
         }
 
         let providersList: ProviderSummary[] = [];
@@ -192,28 +246,43 @@ export function Services() {
           providersList = Array.isArray(providersJson.providers) ? providersJson.providers : [];
         }
 
-        if (!mounted) return;
         setServices(servicesList);
+        setStarterKitServices(starterKitList);
         setLanguages(languagesList);
-        setGuideCategories(categoriesList);
         setProviders(providersList);
         setStatus('ready');
       } catch (err) {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : 'Could not load services.');
+        if (err instanceof Error && err.message.trim().length > 0) {
+          setError(err.message);
+        } else {
+          setError(getFriendlyRequestError({ error: err, action: 'load services' }));
+        }
         setServices([]);
         setLanguages([]);
-        setGuideCategories([]);
         setProviders([]);
         setStatus('error');
       }
-    };
+    }, []);
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  useEffect(() => {
+    if (status !== 'ready' || !location.hash) return;
+
+    const timer = window.setTimeout(() => {
+      const id = location.hash.replace('#', '');
+      const element = document.getElementById(id);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [location.hash, status, services, starterKitServices, languages, providers]);
 
   const topServices = useMemo(() => services.slice(0, 11), [services]);
 
@@ -269,22 +338,14 @@ export function Services() {
     return rows;
   }, [providers]);
 
-  const starterGuideBlocks = useMemo(() => {
-    const blocks = guideCategories
-      .filter((item) => item.group !== 'APP' && item.isStarterKit === false)
-      .slice(0, 3)
-      .map((item) => ({
-        title: item.category,
-        items: Array.isArray(item.subcategories)
-          ? item.subcategories.map((sub) => sub.trim()).filter((sub) => sub.length > 0)
-          : [],
-      }));
-
-    return blocks.length > 0 ? blocks : FALLBACK_GUIDE_BLOCKS;
-  }, [guideCategories]);
-
   return (
     <main className="pt-16 bg-white text-gray-900">
+      {status === 'loading' || status === 'idle' ? (
+        <section className="ykb-section bg-[#fdfbf7] min-h-[60vh] flex items-center justify-center">
+          <LoadingSpinner size="lg" text="Loading services…" centered />
+        </section>
+      ) : null}
+
       <section className="ykb-section bg-[#fdfbf7]">
         <div className="ykb-container">
           <div className="mb-6">
@@ -294,51 +355,29 @@ export function Services() {
             </p>
           </div>
 
-          <div className="mb-8 grid gap-4 rounded-3xl border border-secondary/25 bg-white p-5 shadow-sm sm:grid-cols-[1.6fr_1fr]">
-            <div>
-              <h2 className="text-xl font-semibold text-primary mb-2">{t('services.whatWeDo')}</h2>
-              <p className="mb-4 text-sm text-textSecondary">
-                {t('services.whatWeDoDescription')}
-              </p>
-              <ul className="space-y-2 text-sm text-textSecondary">
-                <li>• {t('services.customConcierge')}</li>
-                <li>• {t('services.starterGuideService')}</li>
-                <li>• {t('services.hardToFind')}</li>
-              </ul>
-            </div>
-            <div className="rounded-3xl bg-secondary/5 p-5">
-              <h3 className="text-lg font-semibold text-primary mb-3">{t('services.needHelpNow')}</h3>
-              <p className="mb-4 text-sm text-textSecondary">
-                {t('services.needHelpDescription')}
-              </p>
-              <button
-                onClick={() => openWhatsApp('Hello Your Kigali Bestie, I need help booking a custom service or provider.')}
-                className="ykb-button-primary w-full mb-3"
-              >
-                <span>{t('services.helpMeBook')}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => navigate('/request')}
-                className="ykb-button-outline w-full"
-              >
-                <ClipboardList className="h-4 w-4" />
-                <span>Request Service</span>
-              </button>
-            </div>
-          </div>
 
-          <div className="sticky top-16 z-20 mb-8 rounded-2xl border border-secondary/25 bg-linear-to-r from-secondary/10 via-white to-primary/5 p-3 shadow-gold backdrop-blur">
-            <div className="flex flex-wrap gap-3">
-              {sectionLinks.map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className="whitespace-nowrap rounded-xl border border-secondary/20 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition-colors hover:border-secondary hover:bg-secondary hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  {section.label}
-                </a>
+
+          <div className="sticky top-16 z-20 mb-8 border-b border-secondary/20 bg-white/95 py-3 backdrop-blur">
+            <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-primary sm:text-sm">
+              {sectionLinks.map((section, index) => (
+                <span key={section.id} className="inline-flex items-center gap-2">
+                  <a
+                    href={`#${section.id}`}
+                    className="transition-colors hover:text-secondary focus:outline-none focus-visible:text-secondary"
+                  >
+                    {section.label}
+                  </a>
+                  {index < sectionLinks.length - 1 ? <span className="text-textSecondary">|</span> : null}
+                </span>
               ))}
+              <span className="inline-flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/guide')}
+                  className="transition-colors hover:text-secondary focus:outline-none focus-visible:text-secondary"
+                >
+                  {t('services.starterGuide')}
+                </button>
+              </span>
             </div>
           </div>
 
@@ -348,17 +387,21 @@ export function Services() {
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-2xl font-bold text-primary">{t('services.ourCoreServices')}</h2>
-              <span className="ykb-pill">{t('services.upToServices')}</span>
+  
             </div>
             <p className="mb-4 text-sm text-textSecondary">
               {t('services.coreServicesDescription')}
             </p>
 
-            {status === 'loading' || status === 'idle' ? (
-              <LoadingSpinner size="md" text="Loading services…" centered />
-            ) : status === 'error' ? (
+            {status === 'error' ? (
               <div className="ykb-card">
-                <div className="ykb-alert ykb-alert-error">{error ?? 'Could not load services.'}</div>
+                <div className="ykb-alert ykb-alert-error">{error ?? 'We could not load services right now. Please try again.'}</div>
+                <button
+                  onClick={() => void load()}
+                  className="mt-3 ykb-button-outline"
+                >
+                  Try again
+                </button>
               </div>
             ) : topServices.length === 0 ? (
               <div className="ykb-card">
@@ -366,18 +409,86 @@ export function Services() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {topServices.map((service, index) => (
-                  <ServiceCard
-                    key={service.id}
-                    title={service.title}
-                    description={service.description}
-                    imageUrl={service.imageUrl}
-                    count={index + 1}
-                  />
-                ))}
+                {topServices.map((service, index) => {
+                  const { category, description } = getDisplayFields(service);
+                  const { category: englishTitle, description: englishDescription } = getEnglishFields(service);
+                  const anchorId = createServiceAnchorId(englishTitle, 'service');
+
+                  const canBrowseProviders = service.allowProviderRegistration === true;
+
+                  const ctaText = PHASE1_ENABLED
+                    ? 'Request service'
+                    : canBrowseProviders
+                      ? 'Browse service providers'
+                      : 'Request service';
+
+                  const onCta = PHASE1_ENABLED
+                    ? () => navigate(`/request?service=${encodeURIComponent(englishTitle)}`)
+                    : canBrowseProviders
+                      ? () => navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`)
+                      : () =>
+                          openWhatsApp(
+                            [
+                              'Hello Your Kigali Bestie, I would like to request this service:',
+                              `Service: ${englishTitle}`,
+                              englishDescription ? `Description: ${englishDescription}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join('\n')
+                          );
+
+                  return (
+                    <div key={service.id} id={anchorId} className="scroll-mt-28">
+                      <ServiceCard
+                        title={category}
+                        description={description}
+                        imageUrl={service.imageUrl}
+                        count={index + 1}
+                        ctaText={ctaText}
+                        onCta={onCta}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
+
+          {starterKitServices.length > 0 ? (
+            <section
+              id="starter-kit-services"
+              className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-secondary bg-linear-to-br from-secondary/10 via-white to-white p-4 sm:p-6 lg:p-8 shadow-sm"
+            >
+              <div className="mb-4 flex items-center gap-3">
+                <Languages className="h-6 w-6 text-primary" />
+                <h2 className="text-2xl font-bold text-primary">Starter Kit Services</h2>
+              </div>
+              <p className="mb-4 text-sm text-textSecondary">
+                Helpful starter services for settling in quickly.
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {starterKitServices.map((service, index) => {
+                  const { category, description } = getDisplayFields(service);
+                  const { category: englishTitle } = getEnglishFields(service);
+                  const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
+
+                  return (
+                    <div key={service.id} id={anchorId} className="scroll-mt-28">
+                      <ServiceCard
+                        title={category}
+                        description={description}
+                        imageUrl={service.imageUrl}
+                        count={index + 1}
+                        ctaText={t('services.learnMore')}
+                        onCta={() => navigate(`/guide#${anchorId}`)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           <section
             id="translator"
@@ -465,41 +576,131 @@ export function Services() {
                     <h3 className="text-base font-semibold text-primary">{app.appName}</h3>
                     <p className="mt-1 text-xs text-textSecondary">Provider: {app.providerName}</p>
 
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 space-y-3">
                       {app.webAppUrl ? (
-                        <a
-                          href={app.webAppUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm text-primary hover:border-secondary/40"
-                        >
-                          <span>{t('services.webApp')}</span>
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="flex items-center gap-2 mb-2">
+                            <img src={webAppIcon} alt="Web App" className="h-5 w-5" />
+                            <span className="text-sm font-semibold text-primary">{t('services.webApp')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                            <a
+                              href={app.webAppUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 text-xs text-textSecondary hover:text-secondary truncate"
+                              title={app.webAppUrl}
+                            >
+                              {app.webAppUrl}
+                            </a>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleCopyLink(app.webAppUrl!)}
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Copy link"
+                              >
+                                {copiedLink === app.webAppUrl ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                )}
+                              </button>
+                              <a
+                                href={app.webAppUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Open in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
                       ) : null}
 
                       {app.playStoreUrl ? (
-                        <a
-                          href={app.playStoreUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm text-primary hover:border-secondary/40"
-                        >
-                          <span>{t('services.playStore')}</span>
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="flex items-center gap-2 mb-2">
+                            <img src={playStoreIcon} alt="Play Store" className="h-5 w-5" />
+                            <span className="text-sm font-semibold text-primary">{t('services.playStore')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                            <a
+                              href={app.playStoreUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 text-xs text-textSecondary hover:text-secondary truncate"
+                              title={app.playStoreUrl}
+                            >
+                              {app.playStoreUrl}
+                            </a>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleCopyLink(app.playStoreUrl!)}
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Copy link"
+                              >
+                                {copiedLink === app.playStoreUrl ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                )}
+                              </button>
+                              <a
+                                href={app.playStoreUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Open in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
                       ) : null}
 
                       {app.appStoreUrl ? (
-                        <a
-                          href={app.appStoreUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm text-primary hover:border-secondary/40"
-                        >
-                          <span>{t('services.appStore')}</span>
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="flex items-center gap-2 mb-2">
+                            <img src={appStoreIcon} alt="App Store" className="h-5 w-5" />
+                            <span className="text-sm font-semibold text-primary">{t('services.appStore')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                            <a
+                              href={app.appStoreUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 text-xs text-textSecondary hover:text-secondary truncate"
+                              title={app.appStoreUrl}
+                            >
+                              {app.appStoreUrl}
+                            </a>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleCopyLink(app.appStoreUrl!)}
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Copy link"
+                              >
+                                {copiedLink === app.appStoreUrl ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                )}
+                              </button>
+                              <a
+                                href={app.appStoreUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
+                                title="Open in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   </article>
@@ -508,124 +709,40 @@ export function Services() {
             )}
           </section>
 
-          <section className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-amber-400 bg-linear-to-br from-amber-50 via-white to-surface p-4 sm:p-6 lg:p-8 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
-              <BookOpenText className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold text-primary">{t('services.bestieMadeGuide')}</h2>
+          <div className="mb-8 grid gap-4 rounded-3xl border border-secondary/25 bg-white p-5 shadow-sm sm:grid-cols-[1.6fr_1fr]">
+            <div>
+              <h2 className="text-xl font-semibold text-primary mb-2">{t('services.whatWeDo')}</h2>
+              <p className="mb-4 text-sm text-textSecondary">
+                {t('services.whatWeDoDescription')}
+              </p>
+              <ul className="space-y-2 text-sm text-textSecondary">
+                <li>• {t('services.customConcierge')}</li>
+                <li>• {t('services.starterGuideService')}</li>
+                <li>• {t('services.hardToFind')}</li>
+              </ul>
             </div>
-            <p className="mb-4 text-sm text-textSecondary">
-              {t('services.guideDescription')}
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <article className="ykb-card">
-                <h3 className="text-base font-semibold text-primary mb-2">{t('services.first24Hours')}</h3>
-                <ul className="space-y-2 text-sm text-textSecondary">
-                  <li>• Get a SIM card at the airport or from MTN/Airtel branches in Kigali.</li>
-                  <li>• Mobile money is the easiest way to pay locally, with cash and cards also accepted.</li>
-                  <li>• Use airport forex bureaus or nearby exchange branches for safe currency conversion.</li>
-                </ul>
-              </article>
-              <article className="ykb-card">
-                <h3 className="text-base font-semibold text-primary mb-2">{t('services.emergenciesEssentials')}</h3>
-                <ul className="space-y-2 text-sm text-textSecondary">
-                  <li>• Recommended hospitals and emergency numbers to keep handy.</li>
-                  <li>• Police, ambulance, and urgent support contacts for peace of mind.</li>
-                  <li>• Safe food delivery and transport apps like Vuba Vuba, Yego Cabs, and Move.</li>
-                </ul>
-              </article>
-              <article className="ykb-card">
-                <h3 className="text-base font-semibold text-primary mb-2">{t('services.wifiConnectivity')}</h3>
-                <ul className="space-y-2 text-sm text-textSecondary">
-                  <li>• Mobile data is widely available through MTN and Airtel.</li>
-                  <li>• Many hotels, apartments and cafes offer Wi-Fi access.</li>
-                  <li>• Local options include Mango 4G and Canal Box for reliable home internet.</li>
-                </ul>
-              </article>
-              <article className="ykb-card">
-                <h3 className="text-base font-semibold text-primary mb-2">{t('services.housingSupport')}</h3>
-                <ul className="space-y-2 text-sm text-textSecondary">
-                  <li>• We can help you book Airbnb, hotels, apartments, or long-term stays in Kigali and beyond.</li>
-                  <li>• Our service includes choosing the right location, room count, and budget for your needs.</li>
-                  <li>• Housing bookings are charged a small support fee so we can manage your request quickly and safely.</li>
-                </ul>
-                <button
-                  onClick={() => openWhatsApp('Hello, I need help booking housing in Rwanda.')} 
-                  className="mt-4 ykb-button-primary w-full"
-                >
-                  <span>{t('services.helpMeBookHousing')}</span>
-                </button>
-              </article>
+            <div className="rounded-3xl bg-secondary/5 p-5">
+              <h3 className="text-lg font-semibold text-primary mb-3">{t('services.needHelpNow')}</h3>
+              <p className="mb-4 text-sm text-textSecondary">
+                {t('services.needHelpDescription')}
+              </p>
+              <button
+                onClick={() => openWhatsApp('Hello Your Kigali Bestie, I need help booking a custom service or provider.')}
+                className="ykb-button-primary w-full mb-3"
+              >
+                <span>{t('services.helpMeBook')}</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => navigate('/request')}
+                className="ykb-button-outline w-full"
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span>Request Service</span>
+              </button>
             </div>
-          </section>
+          </div>
 
-          <section
-            id="starter-guide"
-            className="scroll-mt-28 rounded-3xl border border-border border-l-8 border-l-textSecondary bg-linear-to-br from-primary/5 via-white to-surface p-4 sm:p-6 lg:p-8 shadow-sm"
-          >
-            <div className="mb-4 flex items-center gap-3">
-              <Compass className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold text-primary">{t('services.starterGuideSection')}</h2>
-            </div>
-            <p className="mb-4 text-sm text-textSecondary">
-              {t('services.guideSectionDescription')}
-            </p>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {starterGuideBlocks.map((block) => (
-                <article key={block.title} className="ykb-card">
-                  <div className="mb-3 flex items-center gap-2">
-                    <BookOpenText className="h-5 w-5 text-primary" />
-                    <h3 className="text-base font-semibold text-primary">{block.title}</h3>
-                  </div>
-
-                  {block.items.length === 0 ? (
-                    <p className="text-sm text-textSecondary">More details coming soon.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {block.items.map((item) => (
-                        <li key={`${block.title}-${item}`} className="text-sm text-textSecondary">
-                          • {item}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-6 space-y-4">
-              <div className="ykb-card">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary">View Full Starter Guide</h3>
-                    <p className="text-sm text-textSecondary">Explore all starter kit services and resources for new arrivals.</p>
-                  </div>
-                  <button
-                    onClick={() => navigate('/guide')}
-                    className="ykb-button-primary"
-                  >
-                    <span>View Full Guide</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="ykb-card">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary">{t('services.needPersonalizedHelp')}</h3>
-                    <p className="text-sm text-textSecondary">{t('services.personalizedHelpDescription')}</p>
-                  </div>
-                  <button
-                    onClick={() => openWhatsApp('Hello, I would like personalized support from Your Kigali Bestie.')}
-                    className="ykb-button-primary"
-                  >
-                    <CircleHelp className="h-4 w-4" />
-                    <span>{t('services.contactSupport')}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </section>
     </main>

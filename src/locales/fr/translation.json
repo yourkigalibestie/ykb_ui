@@ -63,7 +63,7 @@
     "whatWeOffer": "Ce Que Nous Offrons",
     "premiumService": "Service Premium",
     "construction": "Construction",
-    "travel": "Voyage",
+    "travel": "Application de demande",
     "dailySupport": "Support Quotidien",
     "essentialServices": "Services Essentiels",
     "quickServices": "Services Rapides",
@@ -119,7 +119,7 @@
     "ourPurpose": "Notre Mission",
     "purposeDesc": "Nous sommes là pour faciliter la vie à Kigali, un service à la fois.",
     "ourMission": "Notre Mission",
-    "missionDesc": "Making it easy to navigate Rwanda for everyone.",
+    "missionDesc": "Faciliter la navigation au Rwanda pour tous.",
     "ourVision": "Notre Vision",
     "visionDesc": "Redéfinir les services de conciergerie au Rwanda en créant une culture de conciergerie ancrée dans la facilité, la confiance et la connaissance locale.",
     "readyToStart": "Prêt à Commencer?",
@@ -133,7 +133,7 @@
       { "title": "Supervision de Construction", "description": "Nous supervisons vos projets de construction en assurant qualité, délais et exécution conforme." },
       { "title": "Gardiennage de Maison", "description": "Tranquillité d'esprit pendant vos voyages — nous nous occupons de votre maison, plantes et animaux." },
       { "title": "Courses et Commissions", "description": "Courses alimentaires, récupération de nettoyage à sec, paiement de factures — nous gérons tout." },
-      { "title": "Planification de Voyages", "description": "Planification de voyage de A à Z incluant vols, hébergement et itinéraires." },
+      { "title": "Applications de commande de repas", "description": "Commandez de délicieux repas à tout moment et n'importe où auprès de restaurants vérifiés, avec une livraison rapide et fiable." },
       { "title": "Organisation d'Événements", "description": "Des anniversaires aux événements d'entreprise — nous gérons chaque détail." },
       { "title": "Transferts Aéroport", "description": "Transferts aéroport fiables et ponctuels avec service d'accueil." },
       { "title": "Livraisons de Courrier", "description": "Livraison rapide et sécurisée de documents et colis dans tout Kigali." },
@@ -147,7 +147,155 @@
       { "title": "Avocats", "description": "Professionnels du droit pour contrats, conseils et représentation." },
       { "title": "Santé", "description": "Rendez-vous médicaux, analyses de laboratoire et références médicales." },
       { "title": "Bricoleurs", "description": "Réparations générales, montage de meubles et entretien de la maison." }
-    ]
+    ],
+    "howItWorks": "Comment ça marche",
+    "howItWorksTitle": "Étapes simples pour obtenir votre Bestie",
+    "howItWorksDesc": "Choisissez un service, réservez en ligne, payez en conséquence, et nous nous occupons du reste.",
+    "stepChoose": "Choisir un service",
+    "stepChooseDesc": "Choisissez ce dont vous avez besoin : aéroport, relocalisation, réservations, et plus.",
+    "stepBook": "Réserver en ligne",
+    "stepBookDesc": "Sélectionnez une heure et soumettez votre demande.",
+    "stepPay": "Payer en conséquence",
+    "stepPayDesc": "Tarification transparente pour les demandes ponctuelles et les adhésions.",
+    "stepWeHandle": "Nous nous occupons du reste",
+    "stepWeHandleDesc": "Notre équipe coordonne tout avec l'aide de professionnels de confiance locaux.",
+    "whyTrustUs": "Pourquoi nous faire confiance ?",
+    "whyTrustUsTitle": "Expertise locale. Responsabilité. Fournisseurs vérifiés.",
+    "vettedProviders": "Fournisseurs vérifiés",
+    "vettedProvidersDesc": "Nous vous connectons à des professionnels et services de confiance à Kigali.",
+    "accountability": "Responsabilité",
+    "accountabilityDesc": "Communication claire et suivi de la demande à la livraison.",
+    "localExpertise": "Expertise locale",
+    "localExpertiseDesc": "Nous connaissons les rues, les meilleurs bureaux, et les bonnes personnes à appeler.",
+    "personalizedHelp": "Assistance personnalisée",
+    "personalizedHelpDesc": "Vous obtenez un vrai Bestie—support humain, adapté à vous.",
+    "personalizedRequests": "Demandes personnalisées",
+    "personalizedRequestsTitle": "Demandez n'importe quoi, nous concevons la solution.",
+    "personalizedRequestsDesc": "C'est ce qui nous distingue d'une entreprise de services ordinaire. Dites-nous ce dont vous avez besoin, et nous le réalisons.",
+    "prioritizeYou": "Adapté à vous",
+    "prioritizeYouDesc": "Nous nous adaptons à votre mode de vie, votre calendrier et vos préférences.",
+    "requestAny": "Demander n'importe quoi",
+    "requestAnyDesc": "Si ce n'est pas répertorié, nous vous aiderons toujours à élaborer le plan.",
+    "fastResponse": "Coordination rapide",
+    "fastResponseDesc": "Nous vous connectons au bon fournisseur et assurez le suivi.",
+    "requestAnythingHint": "Appuyez ci-dessous pour démarrer une demande personnalisée sur WhatsApp.",
+    "startRequest": "Demander n'importe quoi",
+    "rwandaStarterKit": "Kit de Démarrage Rwanda",
+    "rwandaStarterKitTitle": "Installez-vous rapidement SIM, hôpitaux et essentiels",
+    "rwandaStarterKitDesc": "Un mini-guide et des services organisés pour vos premiers jours au Rwanda.",
+    "starterKitSimCards": "Cartes SIM",
+    "starterKitSimCardsDesc": "Comment obtenir une SIM MTN/Airtel et configurer les données.",
+    "starterKitHospitals": "Hôpitaux",
+    "starterKitHospitalsDesc": "Cliniques de confiance et options d'urgence près de vous.",
+    "starterKitMobileMoney": "Mobile Money",
+    "starterKitMobileMoneyDesc": "Configuration Momo et conseils de paiement sécurisés.",
+    "exploreStarterKit": "Explorer le Kit de Démarrage Rwanda"
+  },
+  "aboutUs": {
+    "hero": {
+      "kicker": "Notre Histoire",
+      "titlePrefix": "Kigali",
+      "titleEmphasis": "Conciergerie sur mesure",
+      "description": "Tout a commencé par un problème simple. Une famille. Un moment. Une prise de conscience: la confiance est la chose la plus difficile à trouver quand on en a le plus besoin."
+    },
+    "origin": {
+      "kicker": "Comment tout a commencé",
+      "title": "Le besoin d’une famille",
+      "quote": "Une famille étrangère préparait son retour à la maison pour quelques mois. Mais sa vie à Kigali ne pouvait pas simplement être mise de côté et laissée derrière elle.",
+      "p1": "Ils avaient un chat qui avait besoin d’un soin quotidien. Une maison qui nécessitait une surveillance. Un nettoyage régulier à coordonner. Des véhicules qui avaient besoin de vérifications occasionnelles et de démarrages du moteur pour rester en bon état pendant leur absence.",
+      "p2": "Trouver quelqu’un en qui ils pouvaient vraiment avoir confiance s’est avéré beaucoup plus difficile que prévu.",
+      "p3": "À court d’options, ils ont contacté quelqu’un qu’ils connaissaient à peine, simplement parce qu’ils n’avaient pas d’autre choix. Ce dont ils avaient besoin n’était pas seulement un gardien d’animaux ou quelqu’un qui passe de temps en temps. Ils avaient besoin de quelqu’un de fiable, capable d’intervenir, de faire attention aux détails et de s’occuper des choses comme si c’étaient les leurs.",
+      "p4": "Heureusement, ce soutien a été trouvé. Et tout a changé."
+    },
+    "spark": {
+      "title": "L’étincelle",
+      "questionPrefix": "Une question est devenue la graine:",
+      "questionEmphasis": "Et pour toutes les personnes qui n’ont pas la chance de trouver un soutien de confiance par hasard ou via des relations personnelles?"
+    },
+    "reality": {
+      "kicker": "La réalité",
+      "p1": "Des professionnels occupés. Des familles. Des expatriés. Des personnes qui s’installent dans un nouveau pays. Tous font face au même défi: avoir un soutien fiable auprès de quelqu’un en qui on peut vraiment avoir confiance.",
+      "p2": "Pour ceux qui s’installent à Kigali, à quel point la vie serait plus simple s’il y avait une personne fiable pour vous aider à naviguer dans un nouvel environnement, plutôt que de tout gérer avec des recherches sur Internet et l’incertitude?"
+    },
+    "questionKicker": "Cette question est devenue",
+    "questionTitle": "Conciergerie sur mesure de Kigali",
+    "foundation": {
+      "kicker": "Notre fondation",
+      "title": "Mission & Vision"
+    },
+    "mission": {
+      "kicker": "Mission",
+      "title": "Rendre Kigali plus facile à vivre, une connexion de confiance à la fois.",
+      "whatWeDo": {
+        "kicker": "Ce que nous faisons",
+        "p": "Nous retirons les frictions du quotidien en aidant les gens à trouver un soutien fiable sans devoir deviner."
+      },
+      "howItFeels": {
+        "kicker": "Comment ça se ressent",
+        "p": "Calme, personnel et concret. Comme d’avoir quelqu’un de local à vos côtés quand la vie devient chargée ou inconnue."
+      }
+    },
+    "vision": {
+      "kicker": "Vision",
+      "title": "Une culture de conciergerie ancrée dans la facilité, la confiance et la connaissance locale.",
+      "p": "Nous voulons que l’accompagnement du style de vie au Rwanda ressemble moins à une transaction et plus à une relation fiable vers laquelle on peut revenir.",
+      "ease": {
+        "kicker": "Facilité",
+        "p": "Demandes simples. Suivi clair. Moins de frictions."
+      },
+      "trust": {
+        "kicker": "Confiance",
+        "p": "Un soutien fiable qui donne un sentiment de stabilité, pas d’imprévu."
+      }
+    },
+    "beliefs": {
+      "kicker": "Pourquoi nous le faisons",
+      "title": "Ce en quoi nous croyons",
+      "items": {
+        "0": {
+          "title": "La confiance avant tout",
+          "description": "Vous ne devriez pas accepter un soutien douteux. La confiance se gagne grâce à la constance et à l’attention."
+        },
+        "1": {
+          "title": "Le local compte",
+          "description": "Personne ne connaît Kigali mieux que ceux qui y vivent. Nous valorisons l’expertise locale et la connaissance du terrain."
+        },
+        "2": {
+          "title": "Les détails comptent",
+          "description": "Ce sont les petites choses qui rendent la vie plus facile. Nous nous occupons des détails pour que vous n’ayez pas à le faire."
+        },
+        "3": {
+          "title": "D’abord la communauté",
+          "description": "Être le « bestie » de quelqu’un, c’est se présenter de façon constante et se soucier sincèrement de son bien-être."
+        }
+      }
+    },
+    "apart": {
+      "kicker": "Comment nous servons",
+      "title": "Ce qui nous distingue",
+      "p": "Nous n’essayons pas d’avoir l’air “parfait” pour la forme. Nous voulons être fiables, locaux, et discrètement puissants."
+    ,
+      "features": {
+        "0": {
+          "title": "Connaissance locale",
+          "description": "Nous comprenons Kigali tel qu’il est vécu, pas tel qu’on l’imagine de loin."
+        },
+        "1": {
+          "title": "Suivi humain",
+          "description": "L’expérience reste personnelle, réactive et stable, de la demande jusqu’à la résolution."
+        },
+        "2": {
+          "title": "Un soutien qui semble proche",
+          "description": "La marque ressemble à une personne à vos côtés, pas à un service client anonyme."
+        }
+      }
+    },
+    "cta": {
+      "title": "Rejoignez dès aujourd’hui la communauté Kigali Bespoke Concierge",
+      "p": "Que vous ayez besoin d’aide pour les détails du quotidien ou que vous soyez prêt à proposer des services de confiance, nous sommes là pour mettre en relation des personnes qui se soucient avec des personnes qui en ont besoin.",
+      "primaryButton": "Explorer les services",
+      "secondaryButton": "Devenir un fournisseur"
+    }
   },
   "services": {
     "title": "Nos Services",
@@ -444,10 +592,214 @@
     "manageServices": "Gérer les services"
   },
   "starter": {
-    "dashboard": "Tableau de bord de démarrage",
+    "dashboard": "Tableau de dashboard de démarrage",
     "requests": "Mes demandes",
     "profile": "Mon profil",
     "guide": "Guide de démarrage",
     "welcome": "Bienvenue à Kigali!"
+  },
+  "starterGuidePage": {
+    "kicker": "Profitez de votre séjour au Rwanda",
+    "title": "Guide de démarrage",
+    "description": "Bienvenue chez Your Kigali Bestie ! Ce guide de démarrage vous aidera à naviguer vos premières 24 heures à Kigali avec des conseils essentiels sur la connectivité mobile, les contacts d'urgence, les applications indispensables et les options de logement. Installons-nous et partons explorer la ville comme un local !",
+    "tryAgain": "Réessayer",
+    "starterKitServicesTitle": "Services du kit de démarrage",
+    "viewService": "Voir le service",
+    "categoriesLabel": "Catégories :",
+    "noStarterKitServices": "Aucun service du kit de démarrage disponible.",
+    "loadingStarterKitServices": "Chargement des services du kit de démarrage…",
+    "first24HoursTitle": "Premières 24 heures",
+    "emergencyTitle": "En cas d'urgence",
+    "appsTitle": "Applications indispensables",
+    "internetTitle": "Internet et WiFi",
+    "cards": {
+      "mobileSim": {
+        "title": "Carte SIM et mobile",
+        "items": {
+          "0": "MTN : disponible à l'aéroport et dans les centres-villes",
+          "1": "Airtel : bonne couverture à Kigali",
+          "2": "Apportez votre passeport pour l'enregistrement",
+          "3": "Plans prépayés abordables disponibles"
+        }
+      },
+      "mobileMoney": {
+        "title": "Mobile Money",
+        "items": {
+          "0": "MTN Mobile Money (Momo) : le plus populaire",
+          "1": "Airtel Money : largement accepté",
+          "2": "À utiliser pour des transferts et paiements faciles",
+          "3": "Inscrivez-vous avec une pièce d'identité à tout point de service"
+        }
+      },
+      "currencyExchange": {
+        "title": "Change de devises",
+        "items": {
+          "0": "Bureaux de change dans toute la ville",
+          "1": "Le centre-ville de Kigali offre de nombreuses options",
+          "2": "Les distributeurs automatiques acceptent les principales cartes",
+          "3": "Taux compétitifs dans les bureaux établis"
+        }
+      },
+      "medical": {
+        "title": "Médical",
+        "items": {
+          "0": "Hôpital King Faisal : établissement haut de gamme",
+          "1": "Hôpital de Nyarutarama : excellent service",
+          "2": "Hôpital central : option publique",
+          "3": "Urgences : 912"
+        }
+      },
+      "policeSafety": {
+        "title": "Police et sécurité",
+        "items": {
+          "0": "Urgence police : 112",
+          "1": "Kigali est généralement très sûre",
+          "2": "Police touristique : utile et accueillante",
+          "3": "Gardez des copies des documents importants"
+        }
+      },
+      "ambulance": {
+        "title": "Ambulance et secours",
+        "items": {
+          "0": "Ambulance : 911",
+          "1": "Temps de réponse rapide en cas d'urgence",
+          "2": "Ambulances d'hôpital disponibles 24h/24 et 7j/7",
+          "3": "De nombreuses cliniques privées proposent le transport"
+        }
+      },
+      "foodDelivery": {
+        "title": "Nourriture et livraison",
+        "items": {
+          "0": "Vuba Vuba : application locale populaire",
+          "1": "Jumia Food : large choix de restaurants",
+          "2": "Uber Eats : en développement à Kigali",
+          "3": "Livraison rapide dans la plupart des zones"
+        }
+      },
+      "transportation": {
+        "title": "Transport",
+        "items": {
+          "0": "Yego : covoiturage fiable",
+          "1": "Move : transport local abordable",
+          "2": "Uber : disponible à Kigali",
+          "3": "Tarifs équitables et chauffeurs professionnels"
+        }
+      },
+      "mobileInternet": {
+        "title": "Internet mobile",
+        "items": {
+          "0": "Mango 4G : rapide et fiable",
+          "1": "Données mobiles MTN/Airtel : abordables",
+          "2": "Bonne couverture 4G à Kigali",
+          "3": "Plans mensuels disponibles"
+        }
+      },
+      "homeWifi": {
+        "title": "WiFi à domicile",
+        "items": {
+          "0": "Canal Box : solution fibre pour la maison",
+          "1": "Plusieurs fournisseurs dans la ville",
+          "2": "Bonnes vitesses pour le travail et le streaming",
+          "3": "Installation professionnelle incluse"
+        }
+      }
+    }
+  },
+  "faq": {
+    "kicker": "Support",
+    "title": "Questions fréquentes",
+    "description": "Réponses générales concernant la demande de services, la collaboration avec les prestataires et l’utilisation de la plateforme.",
+    "items": {
+      "0": {
+        "title": "Comment demander un service ?",
+        "description": "Choisissez le service dont vous avez besoin, partagez les détails demandés dans le formulaire, puis soumettez votre demande pour lancer le processus."
+      },
+      "1": {
+        "title": "Comment les prestataires sont-ils impliqués ?",
+        "description": "Une fois votre demande soumise, la plateforme l’achemine vers les étapes suivantes afin que le bon prestataire puisse répondre."
+      },
+      "2": {
+        "title": "Puis-je modifier ma demande ?",
+        "description": "Si vous avez besoin de changements, utilisez le workflow de demande de la plateforme et suivez les étapes de mise à jour / communication disponibles."
+      },
+      "3": {
+        "title": "Comment consulter ou choisir un prestataire ?",
+        "description": "Vous pouvez explorer les options disponibles et choisir en fonction de la disponibilité du service et des informations fournies par la plateforme."
+      },
+      "4": {
+        "title": "Quelles langues sont prises en charge ?",
+        "description": "Utilisez le sélecteur de langue pour voir les traductions disponibles sur les pages de la plateforme."
+      },
+      "5": {
+        "title": "Comment contacter le support ?",
+        "description": "Utilisez les informations de contact disponibles dans le footer pour joindre l’équipe et poser vos questions ou signaler un problème."
+      }
+    }
+  },
+  "termsOfService": {
+    "kicker": "Légal",
+    "title": "Conditions d’utilisation",
+    "description": "Ces Conditions expliquent les règles d’utilisation de Your Kigali Bestie et la demande de services via notre plateforme de type conciergerie.",
+    "items": {
+      "0": {
+        "title": "Acceptation des conditions",
+        "description": "En accédant ou en utilisant le site, vous acceptez ces Conditions d’utilisation. Si vous n’êtes pas d’accord, n’utilisez pas la plateforme."
+      },
+      "1": {
+        "title": "Demandes de services",
+        "description": "Vous pouvez demander des services via la plateforme. Vous acceptez de fournir des informations exactes et de les maintenir à jour."
+      },
+      "2": {
+        "title": "Coordination avec les prestataires",
+        "description": "Nous pouvons vous mettre en relation avec des prestataires pour aider à satisfaire vos demandes. Les prestataires sont responsables de l’exécution de leurs propres services."
+      },
+      "3": {
+        "title": "Compte & sécurité",
+        "description": "Vous êtes responsable de maintenir la confidentialité des identifiants utilisés pour accéder à votre compte, ainsi que de toutes les activités effectuées sous votre compte."
+      },
+      "4": {
+        "title": "Paiements",
+        "description": "Le cas échéant, les modalités de paiement et les détails de traitement sont fournis lors du paiement ou dans le flux de paiement. Vous acceptez de payer tous les frais et charges applicables."
+      },
+      "5": {
+        "title": "Conduite des utilisateurs",
+        "description": "Vous acceptez de ne pas détourner la plateforme, d’interférer avec son fonctionnement, ni de soumettre des informations frauduleuses ou illégales."
+      },
+      "6": {
+        "title": "Propriété intellectuelle",
+        "description": "Le contenu, la marque et le design de la plateforme appartiennent à Your Kigali Bestie ou sont utilisés sous licence. Vous ne pouvez pas copier, distribuer ou réutiliser le contenu sans autorisation."
+      },
+      "7": {
+        "title": "Limitation de responsabilité",
+        "description": "Dans la mesure permise par la loi, Your Kigali Bestie n’est pas responsable des dommages indirects ou consécutifs découlant de l’utilisation de la plateforme."
+      }
+    },
+    "additional": {
+      "0": {
+        "title": "Modifications de ces Conditions",
+        "description": "Nous pouvons mettre à jour ces Conditions de temps à autre. L’utilisation continue de la plateforme après la publication des mises à jour signifie que vous acceptez les Conditions révisées."
+      },
+      "1": {
+        "title": "Contact",
+        "description": "Si vous avez des questions concernant ces Conditions, contactez-nous en utilisant les informations disponibles dans le footer."
+      }
+    }
+  },
+  "footer": {
+    "badge": "Conciergerie sur mesure à Kigali",
+    "title": "Pensé pour être la bonne personne à appeler.",
+    "description": "Une aide de confiance, une connaissance locale et une expérience de conciergerie qui reste sereine même quand la vie ne l’est pas.",
+    "quickLinks": "Liens rapides",
+    "services": "Nos services",
+    "starterKit": "Kit de démarrage",
+    "contactUs": "Nous contacter",
+    "call": "Appel",
+    "email": "E-mail",
+    "followUs": "Suivez-nous",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "copyright": "Your Kigali Bestie. Tous droits réservés.",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
   }
 }

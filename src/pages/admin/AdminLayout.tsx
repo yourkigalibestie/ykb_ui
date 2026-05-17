@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const navItems: Array<{ to: string; label: string }> = [
   { to: '/admin', label: 'Dashboard' },
@@ -8,6 +9,7 @@ const navItems: Array<{ to: string; label: string }> = [
   { to: '/admin/translators', label: 'Translator Languages' },
   { to: '/admin/starter-guide', label: 'Starter Kit and services' },
   { to: '/admin/plans', label: 'Plans' },
+    { to: '/admin/profile', label: 'Profile' },
 ];
 
 function AdminTab(props: { to: string; label: string; isLast: boolean }) {
@@ -30,12 +32,14 @@ function AdminTab(props: { to: string; label: string; isLast: boolean }) {
 }
 
 export function AdminLayout() {
+  const { t } = useTranslation();
+
   return (
     <div className="relative">
       <div className="ykb-container">
         <div className="pt-24">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="text-sm font-bold text-primary">Admin</div>
+            <div className="text-sm font-bold text-primary">{t('admin.dashboard')}</div>
             <nav className="max-w-full overflow-x-auto">
               <div className="flex items-stretch whitespace-nowrap">
                 {navItems.map((item, index) => (

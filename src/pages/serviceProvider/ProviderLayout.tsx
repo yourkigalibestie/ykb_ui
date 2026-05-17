@@ -1,6 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+// const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
+
 function ProviderTab(props: { to: string; label: string; isLast: boolean }) {
 	const { to, label, isLast } = props;
 	return (
@@ -24,10 +26,11 @@ export function ProviderLayout() {
 	const { t } = useTranslation();
 
 	const navItems: Array<{ to: string; label: string }> = [
-		{ to: '/provider', label: t('provider.overview') },
-		{ to: '/provider/services', label: t('provider.services') },
-		{ to: '/provider/requests', label: t('provider.requests') },
-		{ to: '/provider/profile', label: t('provider.profile') },
+		{ to: '/provider', label: t('provider.overview') || 'Overview' },
+		{ to: '/provider/services', label: t('provider.services') || 'Services' },
+		// ...(PHASE1_ENABLED ? [] : [{ to: '/provider/requests', label: t('provider.requests') || 'Requests' }]),
+		// { to: '/provider/plans', label: t('provider.plans') || 'Plans' },
+		{ to: '/provider/profile', label: t('provider.profile') || 'Profile' },
 	];
 
 	return (

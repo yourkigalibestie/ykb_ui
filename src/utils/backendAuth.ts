@@ -243,3 +243,112 @@ export async function registerBackend(input: RegisterBackendInput): Promise<Back
   setBackendSession(session);
   return session;
 }
+
+export type UpdateUserProfileInput = {
+  name?: string;
+  phone?: string | null;
+};
+
+export async function updateUserProfile(input: UpdateUserProfileInput): Promise<BackendUser> {
+  const session = getBackendSession();
+  if (!session?.accessToken) {
+    throw new BackendAuthError('Not authenticated.', 401);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/users/me`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getBackendAuthHeaders(),
+      },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  }
+
+  if (!res.ok) {
+    const apiError = await readApiError(res);
+    throw new BackendAuthError(apiError.message, res.status, apiError.details);
+  }
+
+  const json = (await res.json()) as { user?: BackendUser };
+  if (!json?.user?.id) {
+    throw new BackendAuthError('Invalid response from backend.');
+  }
+
+  const currentSession = getBackendSession();
+  if (currentSession) {
+    currentSession.user = json.user;
+    setBackendSession(currentSession);
+  }
+
+  return json.user;
+}
+
+export async function requestEmailChange(newEmail: string): Promise<void> {
+  const session = getBackendSession();
+  if (!session?.accessToken) {
+    throw new BackendAuthError('Not authenticated.', 401);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/users/change-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getBackendAuthHeaders(),
+      },
+      body: JSON.stringify({ newEmail }),
+    });
+  } catch {
+    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  }
+
+  if (!res.ok) {
+    const apiError = await readApiError(res);
+    throw new BackendAuthError(apiError.message, res.status, apiError.details);
+  }
+}
+
+export async function verifyEmailChange(newEmail: string, code: string): Promise<BackendUser> {
+  const session = getBackendSession();
+  if (!session?.accessToken) {
+    throw new BackendAuthError('Not authenticated.', 401);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/users/verify-email-change`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getBackendAuthHeaders(),
+      },
+      body: JSON.stringify({ newEmail, code }),
+    });
+  } catch {
+    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  }
+
+  if (!res.ok) {
+    const apiError = await readApiError(res);
+    throw new BackendAuthError(apiError.message, res.status, apiError.details);
+  }
+
+  const json = (await res.json()) as { user?: BackendUser };
+  if (!json?.user?.id) {
+    throw new BackendAuthError('Invalid response from backend.');
+  }
+
+  const currentSession = getBackendSession();
+  if (currentSession) {
+    currentSession.user = json.user;
+    setBackendSession(currentSession);
+  }
+
+  return json.user;
+}

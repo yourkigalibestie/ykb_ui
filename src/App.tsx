@@ -4,9 +4,10 @@ import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { StarterGuide } from './pages/StarterGuide';
 import { Services } from './pages/Services';
+import { ServiceProviders } from './pages/ServiceProviders';
 import { BookHousing } from './pages/BookHousing';
 import { BookTranslator } from './pages/BookTranslator';
-import { RequestService } from './pages/RequestService';
+// import { RequestService } from './pages/RequestService';
 import { Profile } from './pages/Profile';
 import { Plans } from './pages/Plans';
 import { Subscribe } from './pages/Subscribe';
@@ -14,8 +15,13 @@ import { PaymentCallback } from './pages/PaymentCallback';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { Faq } from './pages/Faq';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
+import { AboutUs } from './pages/AboutUs';
 import { ServiceProviderDashboard } from './pages/serviceProvider/Dashboard';
 import { ServiceProviderServices } from './pages/serviceProvider/Services';
+import { ServiceProviderPlans } from './pages/serviceProvider/Plans';
 import { ProviderRequests } from './pages/serviceProvider/Requests';
 import { ProviderLayout } from './pages/serviceProvider/ProviderLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -32,6 +38,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { StarterRequests } from './pages/starter/StarterRequests';
 import { StarterLayout } from './pages/starter/StarterLayout';
 import { StarterDashboard } from './pages/starter/StarterDashboard';
+import { NotFound } from './pages/NotFound';
 
 
 function App() {
@@ -45,7 +52,15 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/guide" element={<StarterGuide />} />
             <Route path="/services" element={<Services />} />
-            <Route path="/request" element={<RequestService />} />
+            <Route path="/service-providers" element={<ServiceProviders />} />
+            {/* <Route path="/request" element={<RequestService />} /> */}
+
+            <Route path="/about" element={<AboutUs />} />
+
+            {/* Support */}
+            <Route path="/faq" element={<Faq />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
 
             {/* Starter area */}
             <Route path="/profile" element={<StarterLayout />}>
@@ -69,6 +84,7 @@ function App() {
               <Route path="dashboard" element={<Navigate to="/provider" replace />} />
               <Route path="services" element={<ServiceProviderServices />} />
               <Route path="requests" element={<ProviderRequests />} />
+              <Route path="plans" element={<ServiceProviderPlans />} />
               <Route path="profile" element={<Profile />} />
             </Route>
 
@@ -79,6 +95,7 @@ function App() {
             <Route element={<RequireAdmin />}>
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="profile" element={<Profile />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="providers" element={<AdminServiceProviders />} />
                 <Route path="providers/:providerId" element={<AdminProviderDetails />} />
@@ -89,6 +106,8 @@ function App() {
                 <Route path="plans" element={<AdminPlans />} />
               </Route>
             </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
         <Footer />

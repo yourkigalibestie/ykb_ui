@@ -4,8 +4,10 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchPublicServices, type PublicService } from '../data/registrationServices';
 import { type ServiceOffering, type UserRole } from '../utils/auth';
-import { BackendAuthError, registerBackend } from '../utils/backendAuth';
+import { BackendAuthError, loginBackend, registerBackend } from '../utils/backendAuth';
 import logo from '../assets/images/logo.png';
+
+const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
 
 type Step = 1 | 2;
 
@@ -74,6 +76,8 @@ function mapBackendMessageToFieldErrors(message: string, t: (key: string, option
   if (normalized.includes('services')) next.services = t('auth.servicesRequired');
   if (normalized.includes('location')) next.location = t('auth.locationRequired');
   if (normalized.includes('service')) next.service = t('auth.serviceRequired');
+
+  if (normalized.includes('phone')) next.phone = t('auth.phoneRequired');
 
   if (normalized.includes('email')) next.email = t('auth.emailInvalid');
   if (normalized.includes('password')) next.password = t('auth.passwordMinLength', { length: PASSWORD_MIN_LENGTH });
@@ -179,6 +183,7 @@ export function Register() {
   const params = new URLSearchParams(location.search);
   const nextParam = params.get('next');
   const reason = params.get('reason');
+  const requestedRole = params.get('role');
   const safeNext = nextParam && nextParam.startsWith('/') ? nextParam : null;
   const showRequestNotice = reason === 'request' || Boolean(safeNext?.startsWith('/request'));
   const loginHref = (() => {
@@ -190,7 +195,10 @@ export function Register() {
   })();
 
   const [step, setStep] = useState<Step>(1);
-  const [role, setRole] = useState<UserRole | ''>('');
+  const [role, setRole] = useState<UserRole | ''>(() => {
+    if (requestedRole === 'serviceProvider') return 'serviceProvider';
+    return PHASE1_ENABLED ? '' : 'serviceProvider';
+  });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -243,7 +251,7 @@ export function Register() {
         const data = await response.json();
         setError(data.error?.message || 'Failed to send verification code');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to send verification code. Please try again.');
     } finally {
       setSendingVerificationCode(false);
@@ -276,7 +284,7 @@ export function Register() {
         const data = await response.json();
         setError(data.error?.message || 'Invalid verification code');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to verify code. Please try again.');
     } finally {
       setIsVerifyingEmail(false);
@@ -336,7 +344,7 @@ export function Register() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
 
   const providerService = useMemo(
     () => publicServices.find((service) => service.title === provider.service),
@@ -353,7 +361,7 @@ export function Register() {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setFieldErrors({});
-    setRole('');
+    setRole(PHASE1_ENABLED ? '' : 'serviceProvider');
     setIdentity({
       firstName: '',
       middleName: '',
@@ -367,6 +375,10 @@ export function Register() {
       confirm: '',
     });
     setProvider(buildDefaultProviderState(publicServices));
+
+    setEmailVerified(false);
+    setShowVerificationCode(false);
+    setVerificationCode('');
   };
 
   const updateServiceRow = (index: number, field: keyof ServiceOffering, value: string) => {
@@ -435,7 +447,28 @@ export function Register() {
       const status = err instanceof BackendAuthError ? err.status : undefined;
 
       if (status === 409) {
+        const message = err instanceof BackendAuthError ? err.message : '';
+
+        if (message.toLowerCase().includes('phone')) {
+          setFieldErrors((prev) => ({ ...prev, phone: message }));
+          setError(message);
+          return;
+        }
+
         setFieldErrors((prev) => ({ ...prev, email: t('auth.accountExists') }));
+
+        if (emailVerified) {
+          try {
+            const session = await loginBackend(account.email, account.password);
+            const destination = safeNext ?? (session.user.role === 'PROVIDER' ? '/provider' : '/profile');
+            navigate(destination);
+            return;
+          } catch {
+            navigate(loginHref);
+            return;
+          }
+        }
+
         setError(t('auth.accountExists'));
         return;
       }
@@ -492,6 +525,10 @@ export function Register() {
     if (!isNonEmpty(identity.phone)) nextFieldErrors.phone = t('auth.phoneRequired');
 
     if (!isNonEmpty(account.email)) nextFieldErrors.email = t('auth.emailRequired');
+    if (!emailVerified) {
+      nextFieldErrors.email = 'Please verify your email address before continuing';
+      setError('Please verify your email address before continuing');
+    }
     if (account.password.length < PASSWORD_MIN_LENGTH) {
       nextFieldErrors.password = t('auth.passwordMinLength', { length: PASSWORD_MIN_LENGTH });
     }
@@ -520,7 +557,10 @@ export function Register() {
     if (!role) nextFieldErrors.role = t('auth.selectAccountType');
 
     if (!isNonEmpty(account.email)) nextFieldErrors.email = t('auth.emailRequired');
-    if (!emailVerified) setError('Please verify your email address before continuing');
+    if (!emailVerified) {
+      nextFieldErrors.email = 'Please verify your email address before continuing';
+      setError('Please verify your email address before continuing');
+    }
     if (account.password.length < PASSWORD_MIN_LENGTH) {
       nextFieldErrors.password = t('auth.passwordMinLength', { length: PASSWORD_MIN_LENGTH });
     }
@@ -746,60 +786,66 @@ export function Register() {
                     </div>
                   )}
 
-                  <div>
-                    {renderFieldLabel(t('auth.registerAs'), 'role')}
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                          role === 'starter' ? 'border-secondary bg-secondary/10' : 'border-border bg-surface hover:border-secondary/30'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value="starter"
-                          checked={role === 'starter'}
-                          onChange={() => {
-                            setRole('starter');
-                            setStep(1);
-                            setError(null);
-                            setFieldErrors({});
-                          }}
-                          className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
-                        />
-                        <span className="text-sm text-primary">
-                          <span className="block font-semibold">{t('auth.starter')}</span>
-                          <span className="block text-xs text-textSecondary">{t('auth.starterDescription')}</span>
-                        </span>
-                      </label>
+                  {PHASE1_ENABLED ? (
+                    <div>
+                      {renderFieldLabel(t('auth.registerAs'), 'role')}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                            role === 'starter'
+                              ? 'border-secondary bg-secondary/10'
+                              : 'border-border bg-surface hover:border-secondary/30'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="starter"
+                            checked={role === 'starter'}
+                            onChange={() => {
+                              setRole('starter');
+                              setStep(1);
+                              setError(null);
+                              setFieldErrors({});
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
+                          />
+                          <span className="text-sm text-primary">
+                            <span className="block font-semibold">{t('auth.starter')}</span>
+                            <span className="block text-xs text-textSecondary">{t('auth.starterDescription')}</span>
+                          </span>
+                        </label>
 
-                      <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                          role === 'serviceProvider' ? 'border-secondary bg-secondary/10' : 'border-border bg-surface hover:border-secondary/30'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value="serviceProvider"
-                          checked={role === 'serviceProvider'}
-                          onChange={() => {
-                            setRole('serviceProvider');
-                            setStep(1);
-                            setError(null);
-                            setFieldErrors({});
-                            setProvider(buildDefaultProviderState(publicServices));
-                          }}
-                          className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
-                        />
-                        <span className="text-sm text-primary">
-                          <span className="block font-semibold">{t('auth.serviceProvider')}</span>
-                          <span className="block text-xs text-textSecondary">{t('auth.serviceProviderDescription')}</span>
-                        </span>
-                      </label>
+                        <label
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                            role === 'serviceProvider'
+                              ? 'border-secondary bg-secondary/10'
+                              : 'border-border bg-surface hover:border-secondary/30'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value="serviceProvider"
+                            checked={role === 'serviceProvider'}
+                            onChange={() => {
+                              setRole('serviceProvider');
+                              setStep(1);
+                              setError(null);
+                              setFieldErrors({});
+                              setProvider(buildDefaultProviderState(publicServices));
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
+                          />
+                          <span className="text-sm text-primary">
+                            <span className="block font-semibold">{t('auth.serviceProvider')}</span>
+                            <span className="block text-xs text-textSecondary">{t('auth.serviceProviderDescription')}</span>
+                          </span>
+                        </label>
+                      </div>
+                      {inlineError('role')}
                     </div>
-                    {inlineError('role')}
-                  </div>
+                  ) : null}
 
                   {role === '' ? (
                     <div className="ykb-alert ykb-alert-info">{t('auth.chooseType')}</div>
@@ -898,6 +944,8 @@ export function Register() {
                                 setAccount((prev) => ({ ...prev, email: event.target.value }));
                                 clearFieldError('email');
                                 setEmailVerified(false);
+                                setShowVerificationCode(false);
+                                setVerificationCode('');
                               }}
                               className={fieldClass('email')}
                               placeholder="you@example.com"
@@ -1128,6 +1176,8 @@ export function Register() {
                                 setAccount((prev) => ({ ...prev, email: event.target.value }));
                                 clearFieldError('email');
                                 setEmailVerified(false);
+                                setShowVerificationCode(false);
+                                setVerificationCode('');
                               }}
                               className={fieldClass('email')}
                               placeholder="you@example.com"

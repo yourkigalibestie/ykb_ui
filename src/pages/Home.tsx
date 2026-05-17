@@ -2,9 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, MapPin, Clock, Shield, BookOpen, Sparkles, BadgeCheck, Handshake, CreditCard, ClipboardList, HeartHandshake } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { openWhatsApp } from '../utils/whatsapp';
-
-import { fetchPublicServices, type PublicService } from '../data/registrationServices';
-import { services as fallbackServices } from '../data/services';
+import { API_BASE } from '../utils/backendAuth';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useEffect, useState, useRef } from 'react';
 // Import all images
 import appartmentImage from '../assets/images/appartment visting.webp';
@@ -14,6 +13,10 @@ import clinicImage from '../assets/images/clinic image.jpg';
 import foodAppImage from '../assets/images/food delivering app.webp';
 import cleaningImage from '../assets/images/cleaning.jpg';
 import receptionistImage from '../assets/images/receptionist calling.webp';
+import errandRunningImage from '../assets/images/errandRunning.png';
+import constructionSupervision from '../assets/images/constractionsupervision.png';
+import eventplanningImage from '../assets/images/eventplanning.png';
+import airportpickupImage from '../assets/images/airportpickup.png';
 
 // Background scroll images
 const backgroundImages = [
@@ -26,13 +29,34 @@ const backgroundImages = [
   receptionistImage,
 ];
 
+type TranslationLanguage = 'en' | 'fr';
+
+type StarterGuideCategoryTranslation = {
+        language: TranslationLanguage;
+        category: string;
+        description: string | null;
+        subcategories: string[] | null;
+};
+
+type StarterGuideCategory = {
+        id: number;
+        category: string;
+        description?: string | null;
+        isStarterKit?: boolean;
+        allowProviderRegistration?: boolean;
+        translations?: StarterGuideCategoryTranslation[];
+};
+
 export function Home() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const [isVisible, setIsVisible] = useState<Record<string, boolean>>({});
-    const [publicServices, setPublicServices] = useState<PublicService[]>([]);
+    const [featuredServices, setFeaturedServices] = useState<StarterGuideCategory[]>([]);
+    const [featuredStatus, setFeaturedStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
     const [currentBgIndex, setCurrentBgIndex] = useState(0);
     const heroRef = useRef<HTMLDivElement>(null);
+
+    const activeLanguage = (i18n.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en') as TranslationLanguage;
 
     // Auto-scrolling background effect
     useEffect(() => {
@@ -52,29 +76,39 @@ export function Home() {
             { threshold: 0.1, rootMargin: '50px' }
         );
 
+        // Re-scan every time dynamic sections render (e.g. featured services)
         document.querySelectorAll('.animate-on-scroll').forEach((el) => {
             observer.observe(el);
         });
 
         return () => observer.disconnect();
-    }, []);
+    }, [featuredServices.length]);
 
     useEffect(() => {
         let mounted = true;
 
-        const loadServices = async () => {
+        const loadFeatured = async () => {
+            setFeaturedStatus('loading');
+
             try {
-                const mergedServices = await fetchPublicServices();
+                const res = await fetch(`${API_BASE}/starter-guide-categories?isStarterKit=false`);
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+                const json = (await res.json()) as StarterGuideCategory[] | { categories?: StarterGuideCategory[] };
+                const list = Array.isArray(json) ? json : Array.isArray(json.categories) ? json.categories : [];
+                const nonStarter = list.filter((item) => item.isStarterKit === false);
+
                 if (!mounted) return;
-                setPublicServices(mergedServices);
+                setFeaturedServices(nonStarter.slice(0, 3));
+                setFeaturedStatus('ready');
             } catch {
                 if (!mounted) return;
-                setPublicServices([]);
+                setFeaturedServices([]);
+                setFeaturedStatus('error');
             }
         };
 
-        loadServices();
-
+        loadFeatured();
         return () => {
             mounted = false;
         };
@@ -84,21 +118,55 @@ export function Home() {
         openWhatsApp('Hello, I would like to request a custom service');
     };
 
-    const handleBookService = (serviceName: string) => {
-        openWhatsApp(`Hello, I would like to book: ${serviceName}`);
+    const getDisplayFields = (item: StarterGuideCategory) => {
+        const translation = item.translations?.find((t) => t.language === activeLanguage);
+        const category = translation?.category?.trim() || item.category;
+        const description = translation?.description ?? item.description ?? '';
+        return { category, description };
     };
 
-    const featuredServices = (publicServices.length > 0 ? publicServices : fallbackServices).slice(0, 3);
+    const getEnglishFields = (item: StarterGuideCategory) => {
+        const translation = item.translations?.find((t) => t.language === 'en');
+        const category = translation?.category?.trim() || item.category;
+        const description = translation?.description ?? item.description ?? '';
+        return { category, description };
+    };
+
+    const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() === 'true';
+
+    const handleFeaturedClick = (service: StarterGuideCategory) => {
+        const { category: englishTitle, description: englishDescription } = getEnglishFields(service);
+
+        if (PHASE1_ENABLED) {
+            navigate(`/request?service=${encodeURIComponent(englishTitle)}`);
+            return;
+        }
+
+        if (service.allowProviderRegistration === true) {
+            navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`);
+            return;
+        }
+
+        openWhatsApp(
+            [
+                'Hello Your Kigali Bestie, I would like to request this service:',
+                `Service: ${englishTitle}`,
+                englishDescription ? `Description: ${englishDescription}` : null,
+            ]
+                .filter(Boolean)
+                .join('\n')
+        );
+    };
 
     // Personal Services data with images
     const personalServices = [
         { title: t('home.personalServices.0.title'), description: t('home.personalServices.0.description'), image: receptionistImage, size: 'large' },
-        { title: t('home.personalServices.1.title'), description: t('home.personalServices.1.description'), image: appartmentImage, size: 'small' },
+        { title: t('home.personalServices.1.title'), description: t('home.personalServices.1.description'), image: constructionSupervision, size: 'small' },
         { title: t('home.personalServices.2.title'), description: t('home.personalServices.2.description'), image: cleaningImage, size: 'medium' },
-        { title: t('home.personalServices.3.title'), description: t('home.personalServices.3.description'), image: foodImage, size: 'small' },
+        { title: t('home.personalServices.3.title'), description: t('home.personalServices.3.description'), image: errandRunningImage, size: 'small' },
         { title: t('home.personalServices.4.title'), description: t('home.personalServices.4.description'), image: foodAppImage, size: 'medium' },
-        { title: t('home.personalServices.5.title'), description: t('home.personalServices.5.description'), image: foodImage, size: 'large' },
-        { title: t('home.personalServices.6.title'), description: t('home.personalServices.6.description'), image: receptionistImage, size: 'small' },
+        { title: t('home.personalServices.5.title'), description: t('home.personalServices.5.description'), image: eventplanningImage, size: 'large' },
+        { title: t('home.personalServices.6.title'), description: t('home.personalServices.6.description'), image: airportpickupImage, size: 'small' },
         { title: t('home.personalServices.7.title'), description: t('home.personalServices.7.description'), image: movingImage, size: 'small' },
         { title: t('home.personalServices.8.title'), description: t('home.personalServices.8.description'), image: appartmentImage, size: 'medium' },
         { title: t('home.personalServices.9.title'), description: t('home.personalServices.9.description'), image: movingImage, size: 'small' },
@@ -422,26 +490,45 @@ export function Home() {
                         <p className="mt-3 text-textSecondary">{t('home.featuredDesc')}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                        {featuredServices.map((service, idx) => (
-                            <div key={service.id} className={`animate-on-scroll border border-secondary/25 bg-white p-8 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 hover:border-secondary/40 ${isVisible[`featured-${idx}`] ? 'visible' : ''}`} id={`featured-${idx}`}>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-8 h-8 bg-secondary/20 flex items-center justify-center">
-                                        <span className="text-sm font-bold text-secondary">{idx + 1}</span>
+                    {featuredStatus === 'loading' ? (
+                        <div className="py-6">
+                            <LoadingSpinner size="lg" text="Loading services…" />
+                        </div>
+                    ) : featuredServices.length === 0 ? (
+                        <div className="border border-border bg-white p-6 text-sm text-textSecondary">
+                            No featured services available.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                            {featuredServices.map((service, idx) => {
+                                const { category, description } = getDisplayFields(service);
+                                return (
+                                    <div
+                                        key={service.id}
+                                        className={`animate-on-scroll border border-secondary/25 bg-white p-8 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 hover:border-secondary/40 ${
+                                            isVisible[`featured-${idx}`] ? 'visible' : ''
+                                        }`}
+                                        id={`featured-${idx}`}
+                                    >
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 bg-secondary/20 flex items-center justify-center">
+                                                <span className="text-sm font-bold text-secondary">{idx + 1}</span>
+                                            </div>
+                                            <div className="h-3 w-12 bg-secondary"></div>
+                                        </div>
+                                        <h3 className="mb-3 text-lg font-semibold text-primary">{category}</h3>
+                                        <p className="text-sm text-textSecondary mb-4 leading-relaxed">{description}</p>
+                                        <button
+                                            onClick={() => handleFeaturedClick(service)}
+                                            className="inline-flex items-center gap-2 text-sm font-semibold text-secondary hover:text-accent transition-colors border-b border-secondary/30 hover:border-accent"
+                                        >
+                                            {t('home.learnMore')} <ArrowRight className="h-3 w-3" />
+                                        </button>
                                     </div>
-                                    <div className="h-3 w-12 bg-secondary"></div>
-                                </div>
-                                <h3 className="mb-3 text-lg font-semibold text-primary">{service.title}</h3>
-                                <p className="text-sm text-textSecondary mb-4 leading-relaxed">{service.description}</p>
-                                <button 
-                                    onClick={() => handleBookService(service.title)} 
-                                    className="inline-flex items-center gap-2 text-sm font-semibold text-secondary hover:text-accent transition-colors border-b border-secondary/30 hover:border-accent"
-                                >
-                                    {t('home.learnMore')} <ArrowRight className="h-3 w-3" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     <div className="mt-8">
                         <button 
@@ -592,9 +679,9 @@ export function Home() {
 
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                         {[
-                            { title: 'SIM cards', desc: 'How to get an MTN/Airtel SIM and set up data.', icon: MapPin },
-                            { title: 'Hospitals', desc: 'Trusted clinics & emergency options near you.', icon: ClipboardList },
-                            { title: 'Mobile money', desc: 'Momo setup and safe payment tips.', icon: CreditCard },
+                            { title: t('home.starterKitSimCards', 'SIM cards'), desc: t('home.starterKitSimCardsDesc', 'How to get an MTN/Airtel SIM and set up data.'), icon: MapPin },
+                            { title: t('home.starterKitHospitals', 'Hospitals'), desc: t('home.starterKitHospitalsDesc', 'Trusted clinics & emergency options near you.'), icon: ClipboardList },
+                            { title: t('home.starterKitMobileMoney', 'Mobile money'), desc: t('home.starterKitMobileMoneyDesc', 'Momo setup and safe payment tips.'), icon: CreditCard },
                         ].map((c) => (
                             <div key={c.title} className="ykb-card ykb-card-hover p-7">
                                 <div className="mb-4 flex items-center gap-3">
@@ -613,7 +700,7 @@ export function Home() {
                             onClick={() => navigate('/guide')}
                             className="inline-flex items-center justify-center gap-2 border border-secondary/25 bg-secondary px-6 py-3 font-semibold text-primary transition-all hover:shadow-lg hover:scale-105"
                         >
-                            Explore Rwanda Starter Kit
+                            {t('home.exploreStarterKit', 'Explore Rwanda Starter Kit')}
                             <ArrowRight className="h-4 w-4" />
                         </button>
                     </div>

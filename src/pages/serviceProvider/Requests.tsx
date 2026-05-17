@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_BASE, BackendAuthError, getBackendAuthHeaders } from '../../utils/backendAuth';
 import type { BackendAdminRequest } from '../../utils/backendAdmin';
 import { useTranslation } from 'react-i18next';
+import { getFriendlyRequestError } from '../../utils/friendlyErrors';
 
 type TabType = 'received' | 'my-requests';
 
@@ -36,6 +37,11 @@ export function ProviderRequests() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const getFriendlyActionError = useCallback((err: unknown, action: string) => {
+    if (err instanceof Error && err.message.trim().length > 0) return err.message;
+    return getFriendlyRequestError({ error: err, action });
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setIsLoading(true);
@@ -95,20 +101,16 @@ export function ProviderRequests() {
         if (err instanceof BackendAuthError) {
           setError(err.message);
         } else if (err instanceof Error) {
-          if (err.message.includes('Failed to fetch')) {
-            setError(t('provider.couldNotReachBackend'));
-          } else {
-            setError(err.message);
-          }
+          setError(getFriendlyRequestError({ error: err, action: 'load requests' }));
         } else {
-          setError(t('provider.unexpectedError'));
+          setError(getFriendlyRequestError({ error: err, action: 'load requests' }));
         }
       setReceivedRequests([]);
       setMyRequests([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const markResolved = useCallback(
     async (requestId: string) => {
@@ -134,7 +136,12 @@ export function ProviderRequests() {
         });
 
         if (!res.ok) {
-          throw new Error(`Request failed (${res.status})`);
+          throw new Error(
+            getFriendlyRequestError({
+              status: res.status,
+              action: 'mark this request as resolved',
+            })
+          );
         }
 
         const json = (await res.json()) as { request?: BackendAdminRequest };
@@ -148,30 +155,35 @@ export function ProviderRequests() {
       } catch (err) {
         if (activeTab === 'received') setReceivedRequests([...updated]);
         else setMyRequests([...updated]);
-        setActionError(err instanceof Error ? err.message : t('provider.couldNotMarkResolved'));
+        setActionError(getFriendlyActionError(err, 'mark this request as resolved'));
       } finally {
         setUpdatingId(null);
       }
     },
-    [activeTab, receivedRequests, myRequests]
+    [activeTab, receivedRequests, myRequests, getFriendlyActionError]
   );
 
   useEffect(() => {
-    void loadRequests();
+    const timer = window.setTimeout(() => {
+      void loadRequests();
+    }, 0);
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void loadRequests();
     };
 
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [loadRequests]);
 
   const displayRequests = useMemo(() => {
     return activeTab === 'received' ? receivedRequests : myRequests;
   }, [activeTab, receivedRequests, myRequests]);
 
-  const RequestsList = ({ requests }: { requests: BackendAdminRequest[] }) => (
+  const renderRequestsList = (requests: BackendAdminRequest[]) => (
     <>
       {requests.length === 0 ? (
         <div className="ykb-card p-6 text-center">
@@ -313,6 +325,13 @@ export function ProviderRequests() {
             <div className="ykb-card p-6 text-center">
               <h2 className="text-2xl font-bold text-primary mb-2">{t('provider.couldNotLoadRequests')}</h2>
               <p className="text-textSecondary">{error}</p>
+              <button
+                type="button"
+                onClick={() => void loadRequests()}
+                className="mt-4 ykb-button-outline px-4 py-2"
+              >
+                Try again
+              </button>
             </div>
           ) : (
             <>
@@ -327,7 +346,7 @@ export function ProviderRequests() {
                   <p className="text-textSecondary">{t('provider.loadingRequests')}</p>
                 </div>
               ) : (
-                <RequestsList requests={displayRequests} />
+                renderRequestsList(displayRequests)
               )}
             </>
           )}

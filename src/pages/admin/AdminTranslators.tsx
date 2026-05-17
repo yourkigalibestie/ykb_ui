@@ -9,6 +9,16 @@ type Language = {
 	updatedAt?: string;
 };
 
+type PricePeriod = 'hour' | 'week' | 'month';
+
+type FixedPriceInputs = Record<PricePeriod, string>;
+
+const PRICE_FIELDS: Array<{ key: PricePeriod; label: string; placeholder: string }> = [
+        { key: 'hour', label: 'Price per hour (USD) *', placeholder: 'e.g., 15' },
+        { key: 'week', label: 'Price per week (USD) *', placeholder: 'e.g., 80' },
+        { key: 'month', label: 'Price per month (USD) *', placeholder: 'e.g., 300' },
+];
+
 type TranslatorLanguageLink = {
 	languageId: number;
 	language?: Language;
@@ -24,11 +34,11 @@ type Translator = {
 	languages: TranslatorLanguageLink[];
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000/api';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
 async function readApiErrorMessage(res: Response): Promise<string> {
 	try {
-		const data = (await res.json()) as any;
+                const data = (await res.json()) as { error?: { message?: unknown } };
 		const msg = data?.error?.message;
 		if (typeof msg === 'string' && msg.trim().length > 0) return msg;
 	} catch {
@@ -53,7 +63,6 @@ function isValidEmail(value: string): boolean {
 
 function isValidUrl(value: string): boolean {
 	try {
-		// eslint-disable-next-line no-new
 		new URL(value);
 		return true;
 	} catch {
@@ -66,6 +75,51 @@ function translatorLanguageIds(t: Translator | null): number[] {
 	return t.languages.map((l) => l.languageId).filter((id) => Number.isInteger(id) && id > 0);
 }
 
+function emptyPriceInputs(): FixedPriceInputs {
+        return { hour: '', week: '', month: '' };
+}
+
+function readPriceInputs(prices: Record<string, number>): FixedPriceInputs {
+        const values = prices && typeof prices === 'object' ? prices : {};
+        const fallback = Object.values(values).find((value) => Number.isFinite(value) && value > 0);
+        const fallbackValue = fallback !== undefined ? String(fallback) : '';
+
+        return {
+                hour: typeof values.hour === 'number' && values.hour > 0 ? String(values.hour) : fallbackValue,
+                week: typeof values.week === 'number' && values.week > 0 ? String(values.week) : fallbackValue,
+                month: typeof values.month === 'number' && values.month > 0 ? String(values.month) : fallbackValue,
+        };
+}
+
+function buildFixedPrices(inputs: FixedPriceInputs): { prices: Record<string, number> | null; error: string | null } {
+        const prices: Record<string, number> = {};
+
+        for (const field of PRICE_FIELDS) {
+                const value = Number(inputs[field.key]);
+                if (!Number.isFinite(value) || value <= 0) {
+                        return { prices: null, error: `${field.label.replace(' *', '')} must be a positive number.` };
+                }
+                prices[field.key] = value;
+        }
+
+        return { prices, error: null };
+}
+
+function formatLanguagePrices(prices: Record<string, number>): string {
+        const parts = PRICE_FIELDS
+                .map(({ key }) => {
+                        const value = prices[key];
+                        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+                        return `${key}: RWF ${value.toLocaleString()}`;
+                })
+                .filter((part): part is string => part !== null);
+
+        if (parts.length > 0) return parts.join(' · ');
+
+        const legacyPrice = Object.values(prices).find((value) => typeof value === 'number' && Number.isFinite(value) && value > 0);
+        return legacyPrice !== undefined ? `RWF ${legacyPrice.toLocaleString()}` : 'No rates set';
+}
+
 export function AdminTranslators() {
 	const [languages, setLanguages] = useState<Language[]>([]);
 	const [languagesLoading, setLanguagesLoading] = useState(true);
@@ -74,6 +128,7 @@ export function AdminTranslators() {
 	const [translators, setTranslators] = useState<Translator[]>([]);
 	const [translatorsLoading, setTranslatorsLoading] = useState(true);
 	const [translatorsError, setTranslatorsError] = useState<string | null>(null);
+        const [activeTab, setActiveTab] = useState<'languages' | 'translators'>('languages');
 
 	// Create translator form
 	const [name, setName] = useState('');
@@ -83,18 +138,18 @@ export function AdminTranslators() {
 	const [profileImagePublicId, setProfileImagePublicId] = useState('');
 	const [selectedLanguageIds, setSelectedLanguageIds] = useState<number[]>([]);
 
-const [createError, setCreateError] = useState<string | null>(null);
+        const [createError, setCreateError] = useState<string | null>(null);
 	const [creating, setCreating] = useState(false);
-const [showCreateModal, setShowCreateModal] = useState(false);
+        const [showCreateModal, setShowCreateModal] = useState(false);
 
 	// Language management
 	const [languageTitle, setLanguageTitle] = useState('');
-	const [languagePrice, setLanguagePrice] = useState('100');
+        const [languagePrices, setLanguagePrices] = useState<FixedPriceInputs>(emptyPriceInputs());
 	const [languageCreateError, setLanguageCreateError] = useState<string | null>(null);
 	const [creatingLanguage, setCreatingLanguage] = useState(false);
 	const [editingLanguageId, setEditingLanguageId] = useState<number | null>(null);
 	const [editingLanguageTitle, setEditingLanguageTitle] = useState('');
-	const [editingLanguagePrice, setEditingLanguagePrice] = useState('');
+        const [editingLanguagePrices, setEditingLanguagePrices] = useState<FixedPriceInputs>(emptyPriceInputs());
 	const [languageEditError, setLanguageEditError] = useState<string | null>(null);
 	const [savingLanguageEdit, setSavingLanguageEdit] = useState(false);
 
@@ -147,9 +202,9 @@ const [showCreateModal, setShowCreateModal] = useState(false);
 	};
 
 	useEffect(() => {
-		void loadLanguages();
-		void loadTranslators();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+                void (async () => {
+                        await Promise.all([loadLanguages(), loadTranslators()]);
+                })();
 	}, []);
 
 	const toggleLanguageId = (id: number) => {
@@ -288,9 +343,9 @@ const deleteTranslator = async (id: number) => {
                         setLanguageCreateError('Language title is required.');
                         return;
                 }
-                const price = Number(languagePrice);
-                if (!price || price <= 0) {
-                        setLanguageCreateError('Price must be a positive number.');
+                                        const builtPrices = buildFixedPrices(languagePrices);
+                                        if (!builtPrices.prices) {
+                                                setLanguageCreateError(builtPrices.error ?? 'All prices must be positive numbers.');
                         return;
                 }
 
@@ -302,7 +357,7 @@ const deleteTranslator = async (id: number) => {
                                 headers: { 'Content-Type': 'application/json', ...getBackendAuthHeaders() },
                                 body: JSON.stringify({
                                         title: languageTitle.trim(),
-                                        prices: { default: price }
+                                                        prices: builtPrices.prices,
                                 }),
                         });
 
@@ -313,7 +368,7 @@ const deleteTranslator = async (id: number) => {
 
                         setLanguages((prev) => [...prev, json.language!].sort((a, b) => a.id - b.id));
                         setLanguageTitle('');
-                        setLanguagePrice('100');
+                                        setLanguagePrices(emptyPriceInputs());
                 } catch (e) {
                         setLanguageCreateError(e instanceof Error ? e.message : 'Failed to create language');
                 } finally {
@@ -324,9 +379,7 @@ const deleteTranslator = async (id: number) => {
         const handleEditLanguageClick = (lang: Language) => {
                 setEditingLanguageId(lang.id);
                 setEditingLanguageTitle(lang.title);
-                // Get first price value from the prices object
-                const priceValues = Object.values(lang.prices);
-                setEditingLanguagePrice(priceValues.length > 0 ? String(priceValues[0]) : '100');
+                                setEditingLanguagePrices(readPriceInputs(lang.prices));
         };
 
         const saveLanguageEdit = async () => {
@@ -336,9 +389,9 @@ const deleteTranslator = async (id: number) => {
                         setLanguageEditError('Language title is required.');
                         return;
                 }
-                const price = Number(editingLanguagePrice);
-                if (!price || price <= 0) {
-                        setLanguageEditError('Price must be a positive number.');
+                                const builtPrices = buildFixedPrices(editingLanguagePrices);
+                                if (!builtPrices.prices) {
+                                        setLanguageEditError(builtPrices.error ?? 'All prices must be positive numbers.');
                         return;
                 }
 
@@ -350,7 +403,7 @@ const deleteTranslator = async (id: number) => {
                                 headers: { 'Content-Type': 'application/json', ...getBackendAuthHeaders() },
                                 body: JSON.stringify({
                                         title: editingLanguageTitle.trim(),
-                                        prices: { default: price }
+                                                        prices: builtPrices.prices,
                                 }),
                         });
 
@@ -364,7 +417,7 @@ const deleteTranslator = async (id: number) => {
                         );
                         setEditingLanguageId(null);
                         setEditingLanguageTitle('');
-                        setEditingLanguagePrice('');
+                                        setEditingLanguagePrices(emptyPriceInputs());
                 } catch (e) {
                         setLanguageEditError(e instanceof Error ? e.message : 'Failed to update language');
                 } finally {
@@ -404,14 +457,33 @@ const deleteTranslator = async (id: number) => {
                                                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-textSecondary">Manage translation services</p>
                                                 <h1 className="text-3xl font-semibold text-primary md:text-4xl">Translator Languages</h1>
                                                 <p className="mt-2 max-w-xl text-base leading-relaxed text-textSecondary">
-                                                        Create languages and set dynamic prices like hour/week/day.
+                                                                                Create languages and set fixed prices for hour, week, and month.
                                                 </p>
                                         </div>
                                 </div>
                         </section>
 
+                        <div className="ykb-container mt-8">
+                                <div className="flex flex-wrap gap-2 border-b border-border pb-4">
+                                        <button
+                                                type="button"
+                                                onClick={() => setActiveTab('languages')}
+                                                className={activeTab === 'languages' ? 'ykb-button-solid' : 'ykb-button-outline'}
+                                        >
+                                                Languages & Prices
+                                        </button>
+                                        <button
+                                                type="button"
+                                                onClick={() => setActiveTab('translators')}
+                                                className={activeTab === 'translators' ? 'ykb-button-solid' : 'ykb-button-outline'}
+                                        >
+                                                Translators
+                                        </button>
+                                </div>
+                        </div>
+
                         {/* Languages Section */}
-                        <section className="ykb-section bg-surface/50">
+                        <section className={activeTab === 'languages' ? 'ykb-section bg-surface/50' : 'ykb-section bg-surface/50 hidden'}>
                                 <div className="ykb-container">
                                         <div className="mb-6 flex items-center justify-between">
                                                 <h2 className="text-xl font-bold text-primary">Languages</h2>
@@ -433,19 +505,22 @@ const deleteTranslator = async (id: number) => {
                                                                         placeholder="e.g., Kinyarwanda, English, French"
                                                                 />
                                                         </div>
-                                                        <div className="w-32">
-                                                                <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor="language-price">
-                                                                        Price (USD) *
-                                                                </label>
-                                                                <input
-                                                                        id="language-price"
-                                                                        type="number"
-                                                                        value={languagePrice}
-                                                                        onChange={(e) => setLanguagePrice(e.target.value)}
-                                                                        className="ykb-field"
-                                                                        min="1"
-                                                                />
-                                                        </div>
+                                                        {PRICE_FIELDS.map((field) => (
+                                                                <div key={field.key} className="w-32">
+                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor={`language-price-${field.key}`}>
+                                                                                {field.label}
+                                                                        </label>
+                                                                        <input
+                                                                                id={`language-price-${field.key}`}
+                                                                                type="number"
+                                                                                value={languagePrices[field.key]}
+                                                                                onChange={(e) => setLanguagePrices((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                                                                className="ykb-field"
+                                                                                min="1"
+                                                                                placeholder={field.placeholder}
+                                                                        />
+                                                                </div>
+                                                        ))}
                                                         <button
                                                                 type="button"
                                                                 onClick={createLanguage}
@@ -487,7 +562,7 @@ const deleteTranslator = async (id: number) => {
                                                                                         <div>
                                                                                                 <h3 className="text-base font-semibold text-primary">{lang.title}</h3>
                                                                                                 <p className="text-sm text-textSecondary">
-                                                                                                        ${Object.values(lang.prices)[0] || 0}
+                                                                                                                {formatLanguagePrices(lang.prices)}
                                                                                                 </p>
                                                                                         </div>
                                                                                         <div className="flex gap-1">
@@ -501,7 +576,7 @@ const deleteTranslator = async (id: number) => {
                                                                                                 <button
                                                                                                         type="button"
                                                                                                         onClick={() => deleteLanguage(lang.id)}
-                                                                                                        className="ykb-button-outline !border-red-200 !text-red-600 hover:!bg-red-50 text-xs px-2 py-1"
+                                                                                                        className="ykb-button-outline border-red-200! text-red-600! hover:bg-red-50! text-xs px-2 py-1"
                                                                                                 >
                                                                                                         Delete
                                                                                                 </button>
@@ -515,7 +590,7 @@ const deleteTranslator = async (id: number) => {
                                 </div>
                         </section>
 
-                        <section className="ykb-section bg-surface/50">
+                        <section className={activeTab === 'translators' ? 'ykb-section bg-surface/50' : 'ykb-section bg-surface/50 hidden'}>
                                 <div className="ykb-container">
                                         {/* Create Button */}
                                         <div className="mb-6 flex justify-end">
@@ -574,7 +649,7 @@ const deleteTranslator = async (id: number) => {
                                                                                                         {translator.name.charAt(0).toUpperCase()}
                                                                                                 </div>
                                                                                         )}
-                                                                                        <div className="min-w-0 flex-grow">
+                                                                                        <div className="min-w-0 grow">
                                                                                                 <h3 className="text-lg font-semibold text-primary truncate">
                                                                                                         {translator.name}
                                                                                                 </h3>
@@ -589,7 +664,7 @@ const deleteTranslator = async (id: number) => {
 
                                                                                 <div className="mb-4">
                                                                                         <div className="text-xs font-semibold uppercase tracking-[0.22em] text-textSecondary mb-2">
-                                                                                                Languages
+                                                                                                Linked Languages
                                                                                         </div>
                                                                                         <div className="flex flex-wrap gap-1">
                                                                                                 {translator.languages?.length > 0 ? (
@@ -598,7 +673,12 @@ const deleteTranslator = async (id: number) => {
                                                                                                                         key={link.languageId}
                                                                                                                         className="rounded-full border border-secondary/20 bg-secondary/10 px-2 py-1 text-xs font-semibold text-primary"
                                                                                                                 >
-                                                                                                                        {languageById.get(link.languageId)?.title || `Language ${link.languageId}`}
+                                                                                                                        {(() => {
+                                                                                                                                const language = languageById.get(link.languageId);
+                                                                                                                                return language
+                                                                                                                                        ? `${language.title} - ${formatLanguagePrices(language.prices)}`
+                                                                                                                                        : `Language ${link.languageId}`;
+                                                                                                                        })()}
                                                                                                                 </span>
                                                                                                         ))
                                                                                                 ) : (
@@ -618,7 +698,7 @@ const deleteTranslator = async (id: number) => {
                                                                                         <button
                                                                                                 type="button"
                                                                                                 onClick={() => deleteTranslator(translator.id)}
-                                                                                                className="ykb-button-outline !border-red-200 !text-red-600 hover:!bg-red-50"
+                                                                                                className="ykb-button-outline border-red-200! text-red-600! hover:bg-red-50!"
                                                                                         >
                                                                                                 Delete
                                                                                         </button>
@@ -634,7 +714,7 @@ const deleteTranslator = async (id: number) => {
                         {/* Create Modal */}
                         {showCreateModal && (
                                 <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+                                                        className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-4"
                                         role="dialog"
                                         aria-modal="true"
                                         onClick={() => setShowCreateModal(false)}
@@ -762,7 +842,7 @@ const deleteTranslator = async (id: number) => {
 {/* Edit Modal */}
                         {editingId !== null && (
                                 <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+                                                        className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-4"
                                         role="dialog"
                                         aria-modal="true"
                                         onClick={() => setEditingId(null)}
@@ -831,7 +911,7 @@ const deleteTranslator = async (id: number) => {
                         {/* Edit Language Modal */}
                         {editingLanguageId !== null && (
                                 <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+                                                        className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-4"
                                         role="dialog"
                                         aria-modal="true"
                                         onClick={() => setEditingLanguageId(null)}
@@ -869,18 +949,23 @@ const deleteTranslator = async (id: number) => {
                                                                                 className="ykb-field"
                                                                         />
                                                                 </div>
-                                                                <div>
-                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor="edit-language-price">
-                                                                                Price (USD) *
-                                                                        </label>
-                                                                        <input
-                                                                                id="edit-language-price"
-                                                                                type="number"
-                                                                                value={editingLanguagePrice}
-                                                                                onChange={(e) => setEditingLanguagePrice(e.target.value)}
-                                                                                className="ykb-field"
-                                                                                min="1"
-                                                                        />
+                                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                                                        {PRICE_FIELDS.map((field) => (
+                                                                                <div key={field.key}>
+                                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor={`edit-language-price-${field.key}`}>
+                                                                                                {field.label}
+                                                                                        </label>
+                                                                                        <input
+                                                                                                id={`edit-language-price-${field.key}`}
+                                                                                                type="number"
+                                                                                                value={editingLanguagePrices[field.key]}
+                                                                                                onChange={(e) => setEditingLanguagePrices((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                                                                                className="ykb-field"
+                                                                                                min="1"
+                                                                                                placeholder={field.placeholder}
+                                                                                        />
+                                                                                </div>
+                                                                        ))}
                                                                 </div>
 
                                                                 {languageEditError && (

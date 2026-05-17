@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from 'react';
 import { openWhatsApp } from '../utils/whatsapp';
+import { getFriendlyRequestError } from '../utils/friendlyErrors';
 
 interface FormData {
     languageId: string;
@@ -14,17 +15,6 @@ type Language = {
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000/api';
 
-async function readApiErrorMessage(res: Response): Promise<string> {
-    try {
-        const data = (await res.json()) as any;
-        const msg = data?.error?.message;
-        if (typeof msg === 'string' && msg.trim().length > 0) return msg;
-    } catch {
-        // ignore
-    }
-    return `Request failed (${res.status})`;
-}
-
 export function BookTranslator() {
     const [formData, setFormData] = useState<FormData>({
         languageId: '',
@@ -36,6 +26,7 @@ export function BookTranslator() {
     const [languages, setLanguages] = useState<Language[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         let mounted = true;
@@ -44,7 +35,14 @@ export function BookTranslator() {
             setLoading(true);
             try {
                 const res = await fetch(`${API_BASE}/languages`);
-                if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                if (!res.ok) {
+                    throw new Error(
+                        getFriendlyRequestError({
+                            status: res.status,
+                            action: 'load translator options',
+                        })
+                    );
+                }
                 const json = (await res.json()) as { languages?: Language[] };
                 const list = Array.isArray(json.languages) ? json.languages : [];
                 if (!mounted) return;
@@ -52,7 +50,10 @@ export function BookTranslator() {
                 setLoadError(null);
             } catch (err) {
                 if (!mounted) return;
-                const msg = err instanceof Error ? err.message : 'Could not load translator options.';
+                const msg =
+                    err instanceof Error && err.message.trim().length > 0
+                        ? err.message
+                        : getFriendlyRequestError({ error: err, action: 'load translator options' });
                 setLanguages([]);
                 setLoadError(msg);
             } finally {
@@ -64,7 +65,7 @@ export function BookTranslator() {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [reloadKey]);
 
     const selectedLanguage = useMemo(() => {
         const id = Number(formData.languageId);
@@ -136,6 +137,13 @@ export function BookTranslator() {
                     {loadError ? (
                         <div className="mb-5 ykb-card">
                             <div className="ykb-alert ykb-alert-error">{loadError}</div>
+                            <button
+                                type="button"
+                                onClick={() => setReloadKey((v) => v + 1)}
+                                className="mt-3 ykb-button-outline"
+                            >
+                                Try again
+                            </button>
                         </div>
                     ) : null}
 

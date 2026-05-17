@@ -8,23 +8,30 @@ interface ServiceCardProps {
     icon?: ReactNode;
     imageUrl?: string | null;
     count?: number;
+    ctaText?: string;
+    onCta?: () => void;
 }
 
-export function ServiceCard({ title, description, icon, imageUrl, count }: ServiceCardProps) {
+export function ServiceCard({ title, description, icon, imageUrl, count, ctaText = 'Request Service', onCta }: ServiceCardProps) {
     const navigate = useNavigate();
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const handleRequest = () => {
+    const handleCta = () => {
+        if (onCta) {
+            onCta();
+            return;
+        }
+
         console.log('Request Service clicked for:', title);
         navigate(`/request?service=${encodeURIComponent(title)}`);
     };
 
     return (
         <article className="group relative overflow-hidden rounded-lg border border-border bg-white transition-colors duration-200 hover:border-secondary/30 flex flex-col">
-            <div className="absolute inset-0 bg-gradient-to-br from-secondary/0 via-transparent to-primary/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="absolute inset-0 bg-linear-to-br from-secondary/0 via-transparent to-primary/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
             {/* Image Section */}
-            <div className="relative h-40 bg-surface/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="relative h-40 bg-surface/50 flex items-center justify-center overflow-hidden shrink-0">
                 {imageUrl ? (
                     <img 
                         src={imageUrl} 
@@ -51,12 +58,12 @@ export function ServiceCard({ title, description, icon, imageUrl, count }: Servi
             </div>
 
             {/* Content Section */}
-            <div className="relative z-10 flex flex-col flex-grow p-4">
+            <div className="relative z-10 flex flex-col grow p-4">
                 <h3 className="mb-1 text-base font-semibold text-primary transition-colors duration-200 group-hover:text-secondary">
                     {title}
                 </h3>
 
-                <div className="mb-3 flex-grow">
+                <div className="mb-3 grow">
                     <p className={`text-sm leading-relaxed text-textSecondary transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}>
                         {description}
                     </p>
@@ -73,10 +80,10 @@ export function ServiceCard({ title, description, icon, imageUrl, count }: Servi
 
                 <div className="mt-auto">
                     <button
-                        onClick={handleRequest}
+                        onClick={handleCta}
                         className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-white shadow-gold transition-colors duration-200 hover:bg-[#c49b2f] focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
-                        <span>Request Service</span>
+                        <span>{ctaText}</span>
                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </button>
                 </div>
