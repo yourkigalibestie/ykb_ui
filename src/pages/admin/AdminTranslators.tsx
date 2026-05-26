@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PriceGrid } from '../../components/PriceGrid';
 import { getBackendAuthHeaders } from '../../utils/backendAuth';
+import { getFriendlyRequestError, getFriendlyResponseError, getFriendlyUnexpectedResponseError } from '../../utils/friendlyErrors';
 
 type Language = {
 	id: number;
@@ -14,10 +16,14 @@ type PricePeriod = 'hour' | 'week' | 'month';
 type FixedPriceInputs = Record<PricePeriod, string>;
 
 const PRICE_FIELDS: Array<{ key: PricePeriod; label: string; placeholder: string }> = [
-        { key: 'hour', label: 'Price per hour (USD) *', placeholder: 'e.g., 15' },
-        { key: 'week', label: 'Price per week (USD) *', placeholder: 'e.g., 80' },
-        { key: 'month', label: 'Price per month (USD) *', placeholder: 'e.g., 300' },
+        { key: 'hour', label: 'Per hour', placeholder: 'e.g., 15' },
+        { key: 'week', label: 'Per week', placeholder: 'e.g., 80' },
+        { key: 'month', label: 'Per month', placeholder: 'e.g., 300' },
 ];
+
+type Currency = 'usd' | 'rwf';
+
+type MultiCurrencyPrices = Record<Currency, FixedPriceInputs>;
 
 type TranslatorLanguageLink = {
 	languageId: number;
@@ -35,17 +41,6 @@ type Translator = {
 };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
-
-async function readApiErrorMessage(res: Response): Promise<string> {
-	try {
-                const data = (await res.json()) as { error?: { message?: unknown } };
-		const msg = data?.error?.message;
-		if (typeof msg === 'string' && msg.trim().length > 0) return msg;
-	} catch {
-		// ignore
-	}
-	return `Request failed (${res.status})`;
-}
 
 function normalizeLanguageIds(ids: number[]): number[] {
 	const out: number[] = [];
@@ -79,46 +74,57 @@ function emptyPriceInputs(): FixedPriceInputs {
         return { hour: '', week: '', month: '' };
 }
 
-function readPriceInputs(prices: Record<string, number>): FixedPriceInputs {
-        const values = prices && typeof prices === 'object' ? prices : {};
-        const fallback = Object.values(values).find((value) => Number.isFinite(value) && value > 0);
-        const fallbackValue = fallback !== undefined ? String(fallback) : '';
-
-        return {
-                hour: typeof values.hour === 'number' && values.hour > 0 ? String(values.hour) : fallbackValue,
-                week: typeof values.week === 'number' && values.week > 0 ? String(values.week) : fallbackValue,
-                month: typeof values.month === 'number' && values.month > 0 ? String(values.month) : fallbackValue,
-        };
+function emptyMultiCurrencyPrices(): MultiCurrencyPrices {
+        return { usd: emptyPriceInputs(), rwf: emptyPriceInputs() };
 }
 
-function buildFixedPrices(inputs: FixedPriceInputs): { prices: Record<string, number> | null; error: string | null } {
+function readLanguagePrices(prices: Record<string, number> | undefined): MultiCurrencyPrices {
+        const out = emptyMultiCurrencyPrices();
+        if (!prices || typeof prices !== 'object') return out;
+
+        for (const period of Object.keys(out.usd) as PricePeriod[]) {
+                const usdKey = `usd_${period}`;
+                const rwfKey = `rwf_${period}`;
+
+                if (typeof prices[usdKey] === 'number' && Number.isFinite(prices[usdKey]) && prices[usdKey] > 0) {
+                        out.usd[period] = String(prices[usdKey]);
+                }
+                if (typeof prices[rwfKey] === 'number' && Number.isFinite(prices[rwfKey]) && prices[rwfKey] > 0) {
+                        out.rwf[period] = String(prices[rwfKey]);
+                }
+        }
+
+        // Fallback: if legacy numeric keys exist (hour/week/month) treat them as RWF
+        for (const period of Object.keys(out.usd) as PricePeriod[]) {
+                if (!out.rwf[period] || out.rwf[period].length === 0) {
+                        const legacy = prices[period];
+                        if (typeof legacy === 'number' && Number.isFinite(legacy) && legacy > 0) out.rwf[period] = String(legacy);
+                }
+        }
+
+        return out;
+}
+
+function buildPricesForSubmit(inputs: MultiCurrencyPrices): { prices: Record<string, number> | null; error: string | null } {
         const prices: Record<string, number> = {};
 
-        for (const field of PRICE_FIELDS) {
-                const value = Number(inputs[field.key]);
-                if (!Number.isFinite(value) || value <= 0) {
-                        return { prices: null, error: `${field.label.replace(' *', '')} must be a positive number.` };
+        for (const currency of Object.keys(inputs) as Currency[]) {
+                for (const field of PRICE_FIELDS) {
+                        const raw = inputs[currency][field.key as PricePeriod];
+                        const value = Number(raw);
+                        if (!Number.isFinite(value) || value <= 0) {
+                                return { prices: null, error: `${currency.toUpperCase()} ${field.label} must be a positive number.` };
+                        }
+                        prices[`${currency}_${field.key}`] = value;
                 }
-                prices[field.key] = value;
         }
 
         return { prices, error: null };
 }
 
-function formatLanguagePrices(prices: Record<string, number>): string {
-        const parts = PRICE_FIELDS
-                .map(({ key }) => {
-                        const value = prices[key];
-                        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-                        return `${key}: RWF ${value.toLocaleString()}`;
-                })
-                .filter((part): part is string => part !== null);
 
-        if (parts.length > 0) return parts.join(' · ');
 
-        const legacyPrice = Object.values(prices).find((value) => typeof value === 'number' && Number.isFinite(value) && value > 0);
-        return legacyPrice !== undefined ? `RWF ${legacyPrice.toLocaleString()}` : 'No rates set';
-}
+
 
 export function AdminTranslators() {
 	const [languages, setLanguages] = useState<Language[]>([]);
@@ -144,12 +150,12 @@ export function AdminTranslators() {
 
 	// Language management
 	const [languageTitle, setLanguageTitle] = useState('');
-        const [languagePrices, setLanguagePrices] = useState<FixedPriceInputs>(emptyPriceInputs());
+        const [languagePrices, setLanguagePrices] = useState<MultiCurrencyPrices>(emptyMultiCurrencyPrices());
 	const [languageCreateError, setLanguageCreateError] = useState<string | null>(null);
 	const [creatingLanguage, setCreatingLanguage] = useState(false);
 	const [editingLanguageId, setEditingLanguageId] = useState<number | null>(null);
 	const [editingLanguageTitle, setEditingLanguageTitle] = useState('');
-        const [editingLanguagePrices, setEditingLanguagePrices] = useState<FixedPriceInputs>(emptyPriceInputs());
+        const [editingLanguagePrices, setEditingLanguagePrices] = useState<MultiCurrencyPrices>(emptyMultiCurrencyPrices());
 	const [languageEditError, setLanguageEditError] = useState<string | null>(null);
 	const [savingLanguageEdit, setSavingLanguageEdit] = useState(false);
 
@@ -172,11 +178,11 @@ export function AdminTranslators() {
 			const res = await fetch(`${API_BASE}/languages`, {
 				headers: { ...getBackendAuthHeaders() },
 			});
-			if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                        if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'load languages'));
 			const json = (await res.json()) as { languages?: Language[] };
 			setLanguages(Array.isArray(json.languages) ? json.languages : []);
 		} catch (e) {
-			setLanguagesError(e instanceof Error ? e.message : 'Failed to load languages');
+                        setLanguagesError(getFriendlyRequestError({ error: e, action: 'load languages' }));
 			setLanguages([]);
 		} finally {
 			setLanguagesLoading(false);
@@ -190,11 +196,11 @@ export function AdminTranslators() {
 			const res = await fetch(`${API_BASE}/translators`, {
 				headers: { ...getBackendAuthHeaders() },
 			});
-			if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                        if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'load translators'));
 			const json = (await res.json()) as { translators?: Translator[] };
 			setTranslators(Array.isArray(json.translators) ? json.translators : []);
 		} catch (e) {
-			setTranslatorsError(e instanceof Error ? e.message : 'Failed to load translators');
+                        setTranslatorsError(getFriendlyRequestError({ error: e, action: 'load translators' }));
 			setTranslators([]);
 		} finally {
 			setTranslatorsLoading(false);
@@ -258,10 +264,10 @@ export function AdminTranslators() {
 				}),
 			});
 
-			if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                        if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'create translator'));
 
 			const json = (await res.json()) as { translator?: Translator };
-			if (!json.translator) throw new Error('Invalid response from server.');
+                        if (!json.translator) throw new Error(getFriendlyUnexpectedResponseError('create translator'));
 
 setTranslators((prev) => [...prev, json.translator!].sort((a, b) => a.id - b.id));
 
@@ -274,7 +280,7 @@ setTranslators((prev) => [...prev, json.translator!].sort((a, b) => a.id - b.id)
                         setSelectedLanguageIds([]);
                         setShowCreateModal(false);
                 } catch (e) {
-                        setCreateError(e instanceof Error ? e.message : 'Failed to create translator');
+                        setCreateError(getFriendlyRequestError({ error: e, action: 'create translator' }));
                 } finally {
                         setCreating(false);
                 }
@@ -303,10 +309,10 @@ setTranslators((prev) => [...prev, json.translator!].sort((a, b) => a.id - b.id)
                                 body: JSON.stringify({ languageIds: langs }),
                         });
 
-                        if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                                                if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'update translator'));
 
                         const json = (await res.json()) as { translator?: Translator };
-                        if (!json.translator) throw new Error('Invalid response from server.');
+                                                if (!json.translator) throw new Error(getFriendlyUnexpectedResponseError('update translator'));
 
                         setTranslators((prev) =>
                                 prev.map((t) => (t.id === editingId ? json.translator! : t))
@@ -314,7 +320,7 @@ setTranslators((prev) => [...prev, json.translator!].sort((a, b) => a.id - b.id)
                         setEditingId(null);
                         setEditingLanguageIds([]);
                 } catch (e) {
-                        setEditError(e instanceof Error ? e.message : 'Failed to update translator');
+                                                setEditError(getFriendlyRequestError({ error: e, action: 'update translator' }));
                 } finally {
                         setSavingEdit(false);
                 }
@@ -329,11 +335,11 @@ const deleteTranslator = async (id: number) => {
                                 headers: { ...getBackendAuthHeaders() },
                         });
 
-                        if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                                                if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'delete translator'));
 
                         setTranslators((prev) => prev.filter((t) => t.id !== id));
                 } catch (e) {
-                        alert(e instanceof Error ? e.message : 'Failed to delete translator');
+                                                alert(getFriendlyRequestError({ error: e, action: 'delete translator' }));
                 }
         };
 
@@ -343,11 +349,11 @@ const deleteTranslator = async (id: number) => {
                         setLanguageCreateError('Language title is required.');
                         return;
                 }
-                                        const builtPrices = buildFixedPrices(languagePrices);
+                                        const builtPrices = buildPricesForSubmit(languagePrices);
                                         if (!builtPrices.prices) {
                                                 setLanguageCreateError(builtPrices.error ?? 'All prices must be positive numbers.');
-                        return;
-                }
+                                                return;
+                                        }
 
                 setCreatingLanguage(true);
                 setLanguageCreateError(null);
@@ -361,16 +367,16 @@ const deleteTranslator = async (id: number) => {
                                 }),
                         });
 
-                        if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                                                if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'create language'));
 
                         const json = (await res.json()) as { language?: Language };
-                        if (!json.language) throw new Error('Invalid response from server.');
+                                                if (!json.language) throw new Error(getFriendlyUnexpectedResponseError('create language'));
 
                         setLanguages((prev) => [...prev, json.language!].sort((a, b) => a.id - b.id));
                         setLanguageTitle('');
-                                        setLanguagePrices(emptyPriceInputs());
+                                        setLanguagePrices(emptyMultiCurrencyPrices());
                 } catch (e) {
-                        setLanguageCreateError(e instanceof Error ? e.message : 'Failed to create language');
+                                                setLanguageCreateError(getFriendlyRequestError({ error: e, action: 'create language' }));
                 } finally {
                         setCreatingLanguage(false);
                 }
@@ -379,7 +385,7 @@ const deleteTranslator = async (id: number) => {
         const handleEditLanguageClick = (lang: Language) => {
                 setEditingLanguageId(lang.id);
                 setEditingLanguageTitle(lang.title);
-                                setEditingLanguagePrices(readPriceInputs(lang.prices));
+                setEditingLanguagePrices(readLanguagePrices(lang.prices));
         };
 
         const saveLanguageEdit = async () => {
@@ -389,9 +395,9 @@ const deleteTranslator = async (id: number) => {
                         setLanguageEditError('Language title is required.');
                         return;
                 }
-                                const builtPrices = buildFixedPrices(editingLanguagePrices);
-                                if (!builtPrices.prices) {
-                                        setLanguageEditError(builtPrices.error ?? 'All prices must be positive numbers.');
+                const builtPrices = buildPricesForSubmit(editingLanguagePrices);
+                if (!builtPrices.prices) {
+                        setLanguageEditError(builtPrices.error ?? 'All prices must be positive numbers.');
                         return;
                 }
 
@@ -407,19 +413,19 @@ const deleteTranslator = async (id: number) => {
                                 }),
                         });
 
-                        if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                                                if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'update language'));
 
                         const json = (await res.json()) as { language?: Language };
-                        if (!json.language) throw new Error('Invalid response from server.');
+                                                if (!json.language) throw new Error(getFriendlyUnexpectedResponseError('update language'));
 
                         setLanguages((prev) =>
                                 prev.map((l) => (l.id === editingLanguageId ? json.language! : l))
                         );
                         setEditingLanguageId(null);
                         setEditingLanguageTitle('');
-                                        setEditingLanguagePrices(emptyPriceInputs());
+                        setEditingLanguagePrices(emptyMultiCurrencyPrices());
                 } catch (e) {
-                        setLanguageEditError(e instanceof Error ? e.message : 'Failed to update language');
+                                                setLanguageEditError(getFriendlyRequestError({ error: e, action: 'update language' }));
                 } finally {
                         setSavingLanguageEdit(false);
                 }
@@ -434,7 +440,7 @@ const deleteTranslator = async (id: number) => {
                                 headers: { ...getBackendAuthHeaders() },
                         });
 
-                        if (!res.ok) throw new Error(await readApiErrorMessage(res));
+                                                if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'delete language'));
 
                         setLanguages((prev) => prev.filter((l) => l.id !== id));
                         // Also update translators to remove this language
@@ -445,7 +451,7 @@ const deleteTranslator = async (id: number) => {
                                 }))
                         );
                 } catch (e) {
-                        alert(e instanceof Error ? e.message : 'Failed to delete language');
+                                                alert(getFriendlyRequestError({ error: e, action: 'delete language' }));
                 }
         };
 
@@ -506,19 +512,34 @@ const deleteTranslator = async (id: number) => {
                                                                 />
                                                         </div>
                                                         {PRICE_FIELDS.map((field) => (
-                                                                <div key={field.key} className="w-32">
-                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor={`language-price-${field.key}`}>
+                                                                <div key={field.key} className="w-44">
+                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary">
                                                                                 {field.label}
                                                                         </label>
-                                                                        <input
-                                                                                id={`language-price-${field.key}`}
-                                                                                type="number"
-                                                                                value={languagePrices[field.key]}
-                                                                                onChange={(e) => setLanguagePrices((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                                                                                className="ykb-field"
-                                                                                min="1"
-                                                                                placeholder={field.placeholder}
-                                                                        />
+                                                                        <div className="flex gap-2">
+                                                                                <div className="flex-1">
+                                                                                        <input
+                                                                                                id={`language-price-usd-${field.key}`}
+                                                                                                type="number"
+                                                                                                value={languagePrices.usd[field.key]}
+                                                                                                onChange={(e) => setLanguagePrices((prev) => ({ ...prev, usd: { ...prev.usd, [field.key]: e.target.value } }))}
+                                                                                                className="ykb-field"
+                                                                                                min="1"
+                                                                                                placeholder={`USD ${field.placeholder}`}
+                                                                                        />
+                                                                                </div>
+                                                                                <div className="flex-1">
+                                                                                        <input
+                                                                                                id={`language-price-rwf-${field.key}`}
+                                                                                                type="number"
+                                                                                                value={languagePrices.rwf[field.key]}
+                                                                                                onChange={(e) => setLanguagePrices((prev) => ({ ...prev, rwf: { ...prev.rwf, [field.key]: e.target.value } }))}
+                                                                                                className="ykb-field"
+                                                                                                min="1"
+                                                                                                placeholder={`RWF ${field.placeholder}`}
+                                                                                        />
+                                                                                </div>
+                                                                        </div>
                                                                 </div>
                                                         ))}
                                                         <button
@@ -561,9 +582,7 @@ const deleteTranslator = async (id: number) => {
                                                                                 <div className="flex items-start justify-between">
                                                                                         <div>
                                                                                                 <h3 className="text-base font-semibold text-primary">{lang.title}</h3>
-                                                                                                <p className="text-sm text-textSecondary">
-                                                                                                                {formatLanguagePrices(lang.prices)}
-                                                                                                </p>
+                                                                                                <PriceGrid prices={lang.prices} />
                                                                                         </div>
                                                                                         <div className="flex gap-1">
                                                                                                 <button
@@ -668,19 +687,16 @@ const deleteTranslator = async (id: number) => {
                                                                                         </div>
                                                                                         <div className="flex flex-wrap gap-1">
                                                                                                 {translator.languages?.length > 0 ? (
-                                                                                                        translator.languages.map((link) => (
-                                                                                                                <span
-                                                                                                                        key={link.languageId}
-                                                                                                                        className="rounded-full border border-secondary/20 bg-secondary/10 px-2 py-1 text-xs font-semibold text-primary"
-                                                                                                                >
-                                                                                                                        {(() => {
-                                                                                                                                const language = languageById.get(link.languageId);
-                                                                                                                                return language
-                                                                                                                                        ? `${language.title} - ${formatLanguagePrices(language.prices)}`
-                                                                                                                                        : `Language ${link.languageId}`;
-                                                                                                                        })()}
-                                                                                                                </span>
-                                                                                                        ))
+                                                                                                        translator.languages.map((link) => {
+                                                                                                                const language = languageById.get(link.languageId);
+                                                                                                                if (!language) return <span key={link.languageId} className="text-sm text-textSecondary">Language {link.languageId}</span>;
+                                                                                                                return (
+                                                                                                                        <div key={link.languageId} className="rounded-md border border-secondary/20 bg-secondary/10 px-3 py-2 text-sm text-primary">
+                                                                                                                                <div className="font-semibold text-xs mb-1">{language.title}</div>
+                                                                                                                                <PriceGrid prices={language.prices} />
+                                                                                                                        </div>
+                                                                                                                );
+                                                                                                        })
                                                                                                 ) : (
                                                                                                         <span className="text-sm text-textSecondary">No languages assigned</span>
                                                                                                 )}
@@ -952,18 +968,33 @@ const deleteTranslator = async (id: number) => {
                                                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                                                         {PRICE_FIELDS.map((field) => (
                                                                                 <div key={field.key}>
-                                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor={`edit-language-price-${field.key}`}>
+                                                                                        <label className="mb-1.5 block text-sm font-semibold text-primary">
                                                                                                 {field.label}
                                                                                         </label>
-                                                                                        <input
-                                                                                                id={`edit-language-price-${field.key}`}
-                                                                                                type="number"
-                                                                                                value={editingLanguagePrices[field.key]}
-                                                                                                onChange={(e) => setEditingLanguagePrices((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                                                                                                className="ykb-field"
-                                                                                                min="1"
-                                                                                                placeholder={field.placeholder}
-                                                                                        />
+                                                                                        <div className="flex gap-2">
+                                                                                                <div className="flex-1">
+                                                                                                        <input
+                                                                                                                id={`edit-language-price-usd-${field.key}`}
+                                                                                                                type="number"
+                                                                                                                value={editingLanguagePrices.usd[field.key]}
+                                                                                                                onChange={(e) => setEditingLanguagePrices((prev) => ({ ...prev, usd: { ...prev.usd, [field.key]: e.target.value } }))}
+                                                                                                                className="ykb-field"
+                                                                                                                min="1"
+                                                                                                                placeholder={`USD ${field.placeholder}`}
+                                                                                                        />
+                                                                                                </div>
+                                                                                                <div className="flex-1">
+                                                                                                        <input
+                                                                                                                id={`edit-language-price-rwf-${field.key}`}
+                                                                                                                type="number"
+                                                                                                                value={editingLanguagePrices.rwf[field.key]}
+                                                                                                                onChange={(e) => setEditingLanguagePrices((prev) => ({ ...prev, rwf: { ...prev.rwf, [field.key]: e.target.value } }))}
+                                                                                                                className="ykb-field"
+                                                                                                                min="1"
+                                                                                                                placeholder={`RWF ${field.placeholder}`}
+                                                                                                        />
+                                                                                                </div>
+                                                                                        </div>
                                                                                 </div>
                                                                         ))}
                                                                 </div>

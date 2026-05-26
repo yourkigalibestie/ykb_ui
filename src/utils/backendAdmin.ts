@@ -1,22 +1,6 @@
 import { API_BASE, BackendAuthError, getBackendAuthHeaders, getBackendSession } from './backendAuth';
+import { getFriendlyRequestError, getFriendlyResponseError } from './friendlyErrors';
 import type { BackendProviderProfile } from './backendProviders';
-
-type ApiErrorResponse = {
-  error?: {
-    message?: unknown;
-  };
-};
-
-async function readApiErrorMessage(res: Response): Promise<string> {
-  try {
-    const data = (await res.json()) as ApiErrorResponse;
-    const msg = data.error?.message;
-    if (typeof msg === 'string' && msg.trim().length > 0) return msg;
-  } catch {
-    // ignore
-  }
-  return `Request failed (${res.status})`;
-}
 
 function requireAdminSession() {
   const session = getBackendSession();
@@ -36,12 +20,12 @@ export async function fetchAdminProviders(): Promise<BackendProviderProfile[]> {
         ...getBackendAuthHeaders(),
       },
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'load admin providers' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load admin providers'), res.status);
   }
 
   const json = (await res.json()) as { providers?: BackendProviderProfile[] };
@@ -63,12 +47,12 @@ export async function fetchAdminProviderById(providerId: string): Promise<Backen
         ...getBackendAuthHeaders(),
       },
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'load the provider' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load the provider'), res.status);
   }
 
   const json = (await res.json()) as { provider?: BackendProviderProfile };
@@ -122,12 +106,12 @@ export async function fetchAdminRequests(): Promise<BackendAdminRequest[]> {
         ...getBackendAuthHeaders(),
       },
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'load admin requests' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load admin requests'), res.status);
   }
 
   const json = (await res.json()) as { requests?: BackendAdminRequest[] };
@@ -157,12 +141,12 @@ export async function updateAdminRequest(
         adminNotes: input.adminNotes ?? null,
       }),
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'update the request' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'update the request'), res.status);
   }
 
   const json = (await res.json()) as { request?: BackendAdminRequest };
@@ -226,12 +210,12 @@ export async function fetchAdminBookings(): Promise<BackendAdminBooking[]> {
         ...getBackendAuthHeaders(),
       },
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'load admin bookings' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load admin bookings'), res.status);
   }
 
   const json = (await res.json()) as { bookings?: BackendAdminBooking[] };
@@ -286,12 +270,12 @@ export async function fetchAdminPayments(): Promise<BackendAdminPayment[]> {
         ...getBackendAuthHeaders(),
       },
     });
-  } catch {
-    throw new BackendAuthError('Could not reach the backend. Is it running?', 0);
+  } catch (err) {
+    throw new BackendAuthError(getFriendlyRequestError({ error: err, action: 'load admin payments' }), 0);
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load admin payments'), res.status);
   }
 
   const json = (await res.json()) as { payments?: BackendAdminPayment[] };
@@ -326,7 +310,7 @@ export async function verifyProvider(
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'verify the provider'), res.status);
   }
 
   const json = (await res.json()) as { provider?: BackendProviderProfile };
@@ -372,7 +356,7 @@ export async function fetchAdminUsers(role?: string): Promise<BackendAdminUser[]
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load admin users'), res.status);
   }
 
   const json = (await res.json()) as { users?: BackendAdminUser[] };
@@ -402,7 +386,7 @@ export async function fetchProvidersForService(serviceName: string): Promise<Bac
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'load providers for this service'), res.status);
   }
 
   const json = (await res.json()) as { providers?: BackendProviderProfile[] };
@@ -434,7 +418,7 @@ export async function assignProviderToRequest(
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'assign the provider to the request'), res.status);
   }
 
   const json = (await res.json()) as { request?: BackendAdminRequest };
@@ -462,7 +446,7 @@ export async function confirmRequestResolution(requestId: string): Promise<Backe
   }
 
   if (!res.ok) {
-    throw new BackendAuthError(await readApiErrorMessage(res), res.status);
+    throw new BackendAuthError(await getFriendlyResponseError(res, 'confirm the request resolution'), res.status);
   }
 
   const json = (await res.json()) as { request?: BackendAdminRequest };

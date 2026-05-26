@@ -4,6 +4,26 @@ type FriendlyErrorInput = {
   action?: string;
 };
 
+function firstString(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim().length > 0) return value;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = firstString(item);
+      if (found) return found;
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      const found = firstString(item);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
 function isLikelyNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
   if (!(error instanceof Error)) return false;
@@ -23,6 +43,25 @@ function isLikelyNetworkError(error: unknown): boolean {
 function getActionLabel(action?: string): string {
   if (!action || action.trim().length === 0) return 'load this information';
   return action.trim();
+}
+
+export function getFriendlyUnexpectedResponseError(action?: string): string {
+  const actionLabel = getActionLabel(action);
+  return `Something unexpected happened while trying to ${actionLabel}. Please try again.`;
+}
+
+export async function getFriendlyResponseError(response: Response, action?: string): Promise<string> {
+  try {
+    const data = (await response.json()) as unknown;
+    const parsed = firstString((data as { error?: { message?: unknown; details?: unknown } })?.error?.message)
+      ?? firstString((data as { error?: { message?: unknown; details?: unknown } })?.error?.details);
+
+    if (parsed) return parsed;
+  } catch {
+    // ignore
+  }
+
+  return getFriendlyRequestError({ status: response.status, action });
 }
 
 export function getFriendlyRequestError({ status, error, action }: FriendlyErrorInput): string {

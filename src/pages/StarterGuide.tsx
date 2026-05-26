@@ -1,11 +1,12 @@
 import { MapPin, AlertCircle, Smartphone, Wifi, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { openWhatsApp } from '../utils/whatsapp';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBackendAuthHeaders, API_BASE } from '../utils/backendAuth';
+import { createServiceAnchorId } from '../utils/serviceAnchors';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { getFriendlyRequestError } from '../utils/friendlyErrors';
-import { createServiceAnchorId } from '../utils/serviceAnchors';
 
 interface GuideCardProps {
     icon: React.ReactNode;
@@ -85,6 +86,7 @@ export function StarterGuide() {
 
                 if (response.ok) {
                     const data = (await response.json()) as StarterService[] | { categories?: StarterService[] };
+                    console.log('Raw starter guide categories response:', data);
                     const list = Array.isArray(data)
                         ? data
                         : Array.isArray(data.categories)
@@ -117,6 +119,7 @@ export function StarterGuide() {
     }, [fetchServices]);
 
     const navigate = useNavigate();
+    const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
 
     return (
     <main className="pt-16 bg-white text-gray-900">
@@ -164,14 +167,34 @@ export function StarterGuide() {
                                         {(() => {
                                             const { category, description, subcategories } = getDisplayFields(service);
                                             const { category: englishTitle } = getEnglishFields(service);
+
+                                            const canBrowseProviders = service.allowProviderRegistration === true;
+
+                                            const ctaText = PHASE1_ENABLED
+                                                ? t('services.requestService')
+                                                : canBrowseProviders
+                                                    ? t('services.browseProviders')
+                                                    : t('services.requestService');
+
+                                            const onCta = PHASE1_ENABLED
+                                                ? () => navigate(`/request?service=${encodeURIComponent(englishTitle)}`)
+                                                : canBrowseProviders
+                                                    ? () => navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`)
+                                                    : () =>
+                                                        openWhatsApp(
+                                                            [
+                                                                'Hello Your Kigali Bestie, I would like to request this service:',
+                                                                `Service: ${englishTitle}`,
+                                                                description ? `Description: ${description}` : null,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join('\n')
+                                                        );
+
                                             const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
 
-                                            const ctaText = t('starterGuidePage.viewService');
-
-                                            const onCta = () => navigate(`/services#${anchorId}`);
-
                                             return (
-                                                <>
+                                                <div id={anchorId} className="scroll-mt-28">
                                                     <h3 className="text-xl font-serif font-semibold text-primary mb-2">{category}</h3>
                                                     {description ? (
                                                         <p className="text-textSecondary text-sm mb-4">{description}</p>
@@ -196,7 +219,7 @@ export function StarterGuide() {
                                                         <span>{ctaText}</span>
                                                         <ArrowRight className="h-4 w-4" />
                                                     </button>
-                                                </>
+                                                </div>
                                             );
                                         })()}
                                     </div>

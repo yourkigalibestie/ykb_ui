@@ -323,6 +323,7 @@ export function Register() {
 
       try {
         const services = await fetchPublicServices();
+        console.log('Fetched services:', services);
         if (!mounted) return;
 
         setPublicServices(services);

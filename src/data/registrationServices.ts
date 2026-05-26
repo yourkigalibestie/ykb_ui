@@ -3,6 +3,7 @@ export type PublicService = {
   title: string;
   description: string;
   group?: StarterGuideCategoryGroup | null;
+  allowProviderRegistration?: boolean;
 };
 
 type StarterGuideCategoryGroup = 'APP' | 'INFRASTRUCTURE' | 'OTHERS';
@@ -12,23 +13,10 @@ type StarterGuideCategory = {
   category: string;
   group?: StarterGuideCategoryGroup | null;
   subcategories: string[] | null;
+  allowProviderRegistration?: boolean;
 };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
-
-function isPublicService(value: unknown): value is PublicService {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-
-  return (
-    typeof candidate.id === 'number' &&
-    typeof candidate.title === 'string' &&
-    typeof candidate.description === 'string'
-  );
-}
 
 function isStarterGuideCategory(value: unknown): value is StarterGuideCategory {
   if (typeof value !== 'object' || value === null) {
@@ -47,7 +35,9 @@ function isStarterGuideCategory(value: unknown): value is StarterGuideCategory {
       candidate.group === 'OTHERS') &&
     (candidate.subcategories === null ||
       candidate.subcategories === undefined ||
-      Array.isArray(candidate.subcategories))
+      Array.isArray(candidate.subcategories)) &&
+    (candidate.allowProviderRegistration === undefined ||
+      typeof candidate.allowProviderRegistration === 'boolean')
   );
 }
 
@@ -82,7 +72,6 @@ function toNegativeId(seed: number): number {
 }
 
 function mergeServices(
-  publicServices: PublicService[],
   starterGuideCategories: StarterGuideCategory[]
 ): PublicService[] {
   const merged: PublicService[] = [];
@@ -93,30 +82,33 @@ function mergeServices(
     merged.push({ ...service, title });
   };
 
-  publicServices.forEach(addService);
-
-  starterGuideCategories.forEach((category) => {
-    const categoryTitle = normalizeTitle(category.category);
-    addService({
-      id: toNegativeId(category.id * 1000 + 1),
-      title: categoryTitle,
-      description: buildCategoryDescription(category),
-      group: category.group ?? null,
-    });
-
-    const subcategories = Array.isArray(category.subcategories) ? category.subcategories : [];
-    subcategories.forEach((subcategory, index) => {
-      const cleanSubcategory = normalizeTitle(subcategory);
-      if (!cleanSubcategory) return;
-
+  // Add starter guide categories that allow provider registration
+  starterGuideCategories
+    .filter((category) => category.allowProviderRegistration === true)
+    .forEach((category) => {
+      const categoryTitle = normalizeTitle(category.category);
       addService({
-        id: toNegativeId(category.id * 1000 + index + 2),
-        title: cleanSubcategory,
-        description: buildSubcategoryDescription(categoryTitle, cleanSubcategory),
+        id: toNegativeId(category.id * 1000 + 1),
+        title: categoryTitle,
+        description: buildCategoryDescription(category),
         group: category.group ?? null,
+        allowProviderRegistration: category.allowProviderRegistration,
+      });
+
+      const subcategories = Array.isArray(category.subcategories) ? category.subcategories : [];
+      subcategories.forEach((subcategory, index) => {
+        const cleanSubcategory = normalizeTitle(subcategory);
+        if (!cleanSubcategory) return;
+
+        addService({
+          id: toNegativeId(category.id * 1000 + index + 2),
+          title: cleanSubcategory,
+          description: buildSubcategoryDescription(categoryTitle, cleanSubcategory),
+          group: category.group ?? null,
+          allowProviderRegistration: category.allowProviderRegistration,
+        });
       });
     });
-  });
 
   return merged;
 }
@@ -132,18 +124,9 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function fetchPublicServices(): Promise<PublicService[]> {
-  const [publicServicesResult, starterGuideResult] = await Promise.allSettled([
-    fetchJson<{ services?: unknown }>(`${API_BASE}/services`),
-    fetchJson<unknown>(`${API_BASE}/starter-guide-categories`),
-  ]);
+  const starterGuideResult = await fetchJson<unknown>(`${API_BASE}/starter-guide-categories`);
 
-  const publicServices =
-    publicServicesResult.status === 'fulfilled' && Array.isArray(publicServicesResult.value.services)
-      ? publicServicesResult.value.services.filter(isPublicService)
-      : [];
-
-  const rawStarterGuide =
-    starterGuideResult.status === 'fulfilled' ? starterGuideResult.value : null;
+  const rawStarterGuide = starterGuideResult;
   let starterGuideCategories: unknown[] = [];
   if (rawStarterGuide) {
     if (Array.isArray(rawStarterGuide)) {
@@ -155,5 +138,5 @@ export async function fetchPublicServices(): Promise<PublicService[]> {
   }
   starterGuideCategories = starterGuideCategories.filter(isStarterGuideCategory);
 
-  return mergeServices(publicServices, starterGuideCategories as StarterGuideCategory[]);
+  return mergeServices(starterGuideCategories as StarterGuideCategory[]);
 }

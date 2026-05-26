@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader, Image as ImageIcon, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getBackendAuthHeaders } from '../../utils/backendAuth';
+import { API_BASE, getBackendAuthHeaders } from '../../utils/backendAuth';
+import { getFriendlyRequestError, getFriendlyResponseError, getFriendlyUnexpectedResponseError } from '../../utils/friendlyErrors';
 import { uploadServiceImage } from '../../utils/uploadImage';
 
 type StarterGuideCategoryGroup = 'APP' | 'INFRASTRUCTURE' | 'OTHERS';
@@ -29,33 +30,12 @@ type StarterGuideCategory = {
   updatedAt?: string;
 };
 
-type Row = { value: string };
 type LanguageFormState = {
-  en: { title: string; description: string; rows: Row[] };
-  fr: { title: string; description: string; rows: Row[] };
+  en: { title: string; description: string };
+  fr: { title: string; description: string };
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000/api';
-
-async function readApiErrorMessage(res: Response): Promise<string> {
-  try {
-    const data = (await res.json()) as any;
-    const msg = data?.error?.message;
-    if (typeof msg === 'string' && msg.trim().length > 0) return msg;
-  } catch {
-    // ignore
-  }
-  return `Request failed (${res.status})`;
-}
-
-function rowsToSubcategories(rows: Row[]): string[] {
-  return rows.map((row) => row.value.trim()).filter((value) => value.length > 0);
-}
-
-function subcategoriesToRows(items: string[] | null | undefined): Row[] {
-  const list = Array.isArray(items) ? items : [];
-  return list.length > 0 ? list.map((value) => ({ value })) : [{ value: '' }];
-}
+// Subcategories removed: related helpers omitted
 
 const GROUP_OPTIONS: Array<{
   value: StarterGuideCategoryGroup;
@@ -110,18 +90,16 @@ export function AdminStarterandServices() {
 
     const category = translation?.category?.trim() || item.category;
     const description = translation?.description ?? item.description ?? null;
-    const subcategories = translation?.subcategories ?? item.subcategories ?? null;
-
-    return { category, description, subcategories };
+    return { category, description };
   };
 
   // Create form state - with language support
   const [createLang, setCreateLang] = useState<LanguageFormState>({
-    en: { title: '', description: '', rows: [{ value: '' }] },
-    fr: { title: '', description: '', rows: [{ value: '' }] }
+    en: { title: '', description: '' },
+    fr: { title: '', description: '' }
   });
   const [group, setGroup] = useState<StarterGuideCategoryGroup>('OTHERS');
-  const [hasSubcategories, setHasSubcategories] = useState(false);
+  // subcategories removed
   const [imageUrl, setImageUrl] = useState('');
   const [imagePublicId, setImagePublicId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -135,11 +113,11 @@ export function AdminStarterandServices() {
   // Edit form state - with language support
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLang, setEditLang] = useState<LanguageFormState>({
-    en: { title: '', description: '', rows: [{ value: '' }] },
-    fr: { title: '', description: '', rows: [{ value: '' }] }
+    en: { title: '', description: '' },
+    fr: { title: '', description: '' }
   });
   const [editGroup, setEditGroup] = useState<StarterGuideCategoryGroup>('OTHERS');
-  const [editHasSubcategories, setEditHasSubcategories] = useState(true);
+  // edit subcategories removed
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editImagePublicId, setEditImagePublicId] = useState('');
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -163,7 +141,7 @@ export function AdminStarterandServices() {
       const res = await fetch(`${API_BASE}/starter-guide-categories`, {
         headers: { ...getBackendAuthHeaders() },
       });
-      if (!res.ok) throw new Error(await readApiErrorMessage(res));
+      if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'load starter guide categories'));
       const json = (await res.json()) as StarterGuideCategory[] | { categories?: StarterGuideCategory[] };
       const list = Array.isArray(json) ? json : Array.isArray((json as any).categories) ? (json as any).categories : [];
       if ((import.meta as any).env?.DEV) {
@@ -172,7 +150,7 @@ export function AdminStarterandServices() {
       setItems(list);
       setLoadError(null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load categories';
+      const msg = getFriendlyRequestError({ error: err, action: 'load starter guide categories' });
       setItems([]);
       setLoadError(msg);
     } finally {
@@ -191,7 +169,7 @@ export function AdminStarterandServices() {
     setEditingId(id);
     setEditLanguage('en');
     setEditGroup(normalizeGroup(item.group));
-    setEditHasSubcategories(Array.isArray(item.subcategories) && item.subcategories.length > 0);
+    // subcategories removed
     setEditImageUrl(item.imageUrl || '');
     setEditImagePublicId(item.imagePublicId || '');
     setEditIsStarterKit(item.isStarterKit ?? true);
@@ -199,19 +177,17 @@ export function AdminStarterandServices() {
     setEditError(null);
 
     // Load translations
-    const enTrans = item.translations?.find(t => t.language === 'en') || { category: item.category, description: item.description || '', subcategories: item.subcategories };
-    const frTrans = item.translations?.find(t => t.language === 'fr') || { category: '', description: '', subcategories: null };
-    
+    const enTrans = item.translations?.find(t => t.language === 'en') || { category: item.category, description: item.description || '' };
+    const frTrans = item.translations?.find(t => t.language === 'fr') || { category: '', description: '' };
+
     setEditLang({
       en: { 
         title: enTrans.category, 
-        description: enTrans.description || '',
-        rows: subcategoriesToRows(enTrans.subcategories)
+        description: enTrans.description || ''
       },
       fr: { 
         title: frTrans.category, 
-        description: frTrans.description || '',
-        rows: subcategoriesToRows(frTrans.subcategories)
+        description: frTrans.description || ''
       }
     });
   };
@@ -220,11 +196,11 @@ export function AdminStarterandServices() {
     setEditingId(null);
     setEditLanguage('en');
     setEditLang({
-      en: { title: '', description: '', rows: [{ value: '' }] },
-      fr: { title: '', description: '', rows: [{ value: '' }] }
+      en: { title: '', description: '' },
+      fr: { title: '', description: '' }
     });
     setEditGroup('OTHERS');
-    setEditHasSubcategories(true);
+    // edit subcategories removed
     setEditImageUrl('');
     setEditImagePublicId('');
     setEditImageFile(null);
@@ -234,26 +210,14 @@ export function AdminStarterandServices() {
     setEditError(null);
   };
 
-  const validate = (lang: LanguageFormState, enabled: boolean): string | null => {
-    // Check English (required)
+  const validate = (lang: LanguageFormState): string | null => {
     if (!lang.en.title.trim()) return 'English Service Title is required.';
-    // Check French (required)
     if (!lang.fr.title.trim()) return 'French Service Title is required.';
-    
-    if (!enabled) return null;
-    
-    // Validate subcategories for both languages
-    const enSubcategories = rowsToSubcategories(lang.en.rows);
-    const frSubcategories = rowsToSubcategories(lang.fr.rows);
-    
-    if (enSubcategories.length === 0 || frSubcategories.length === 0) {
-      return 'Add at least one category in both languages or turn off categories.';
-    }
     return null;
   };
 
   const createItem = async () => {
-    const err = validate(createLang, hasSubcategories);
+    const err = validate(createLang);
     if (err) {
       setCreateError(err);
       return;
@@ -296,40 +260,35 @@ export function AdminStarterandServices() {
           {
             language: 'en',
             category: createLang.en.title.trim(),
-            description: createLang.en.description.trim() || null,
-            subcategories: hasSubcategories ? rowsToSubcategories(createLang.en.rows) : null
+            description: createLang.en.description.trim() || null
           },
           {
             language: 'fr',
             category: createLang.fr.title.trim(),
-            description: createLang.fr.description.trim() || null,
-            subcategories: hasSubcategories ? rowsToSubcategories(createLang.fr.rows) : null
+            description: createLang.fr.description.trim() || null
           }
         ]
       };
       
-      if (hasSubcategories) {
-        payload.subcategories = rowsToSubcategories(createLang.en.rows);
-      }
 
       const res = await fetch(`${API_BASE}/starter-guide-categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getBackendAuthHeaders() },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await readApiErrorMessage(res));
+      if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'create a service'));
       const json = (await res.json()) as { category?: StarterGuideCategory };
-      if (!json.category) throw new Error('Invalid response');
+      if (!json.category) throw new Error(getFriendlyUnexpectedResponseError('create a service'));
       setItems((prev) => [...prev, json.category!].sort((a, b) => a.id - b.id));
       
       // Reset form
       setCreateLang({
-        en: { title: '', description: '', rows: [{ value: '' }] },
-        fr: { title: '', description: '', rows: [{ value: '' }] }
+        en: { title: '', description: '' },
+        fr: { title: '', description: '' }
       });
       setCreateLanguage('en');
       setGroup('OTHERS');
-      setHasSubcategories(false);
+      // subcategories removed
       setImageUrl('');
       setImagePublicId('');
       setImageFile(null);
@@ -337,7 +296,7 @@ export function AdminStarterandServices() {
       setIsStarterKit(true);
       setAllowProviderRegistration(false);
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : 'Failed to create service');
+      setCreateError(getFriendlyRequestError({ error: e, action: 'create a service' }));
     } finally {
       setCreating(false);
     }
@@ -345,7 +304,7 @@ export function AdminStarterandServices() {
 
   const saveEdit = async () => {
     if (editingId == null) return;
-    const err = validate(editLang, editHasSubcategories);
+    const err = validate(editLang);
     if (err) {
       setEditError(err);
       return;
@@ -383,36 +342,29 @@ export function AdminStarterandServices() {
           {
             language: 'en',
             category: editLang.en.title.trim(),
-            description: editLang.en.description.trim() || null,
-            subcategories: editHasSubcategories ? rowsToSubcategories(editLang.en.rows) : []
+            description: editLang.en.description.trim() || null
           },
           {
             language: 'fr',
             category: editLang.fr.title.trim(),
-            description: editLang.fr.description.trim() || null,
-            subcategories: editHasSubcategories ? rowsToSubcategories(editLang.fr.rows) : []
+            description: editLang.fr.description.trim() || null
           }
         ]
       };
       
-      if (editHasSubcategories) {
-        payload.subcategories = rowsToSubcategories(editLang.en.rows);
-      } else {
-        payload.subcategories = [];
-      }
 
       const res = await fetch(`${API_BASE}/starter-guide-categories/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...getBackendAuthHeaders() },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await readApiErrorMessage(res));
+      if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'save the service'));
       const json = (await res.json()) as { category?: StarterGuideCategory };
-      if (!json.category) throw new Error('Invalid response');
+      if (!json.category) throw new Error(getFriendlyUnexpectedResponseError('save the service'));
       setItems((prev) => prev.map((item) => (item.id === editingId ? json.category! : item)));
       cancelEdit();
     } catch (e) {
-      setEditError(e instanceof Error ? e.message : 'Failed to save');
+      setEditError(getFriendlyRequestError({ error: e, action: 'save the service' }));
     } finally {
       setSavingId(null);
     }
@@ -425,11 +377,11 @@ export function AdminStarterandServices() {
         method: 'DELETE',
         headers: { ...getBackendAuthHeaders() },
       });
-      if (!res.ok) throw new Error(await readApiErrorMessage(res));
+      if (!res.ok) throw new Error(await getFriendlyResponseError(res, 'delete the service'));
       setItems((prev) => prev.filter((item) => item.id !== id));
       if (editingId === id) cancelEdit();
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Failed to delete service');
+      setLoadError(getFriendlyRequestError({ error: e, action: 'delete the service' }));
     } finally {
       setDeletingId(null);
     }
@@ -535,66 +487,7 @@ export function AdminStarterandServices() {
                     />
                   </div>
 
-                  {hasSubcategories && (
-                    <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
-                        Categories ({createLanguage === 'en' ? 'English' : 'French'})
-                      </label>
-                      <div className="space-y-2">
-                        {createLang[createLanguage].rows.map((row, idx) => (
-                          <div key={`create-${createLanguage}-${idx}`} className="flex gap-2">
-                            <input
-                              className="ykb-field flex-1"
-                              placeholder={createLanguage === 'en' ? 'e.g., Hospitals' : 'ex. Hôpitaux'}
-                              value={row.value}
-                              onChange={(e) => {
-                                setCreateLang(prev => ({
-                                  ...prev,
-                                  [createLanguage]: {
-                                    ...prev[createLanguage],
-                                    rows: prev[createLanguage].rows.map((r, i) => i === idx ? { value: e.target.value } : r)
-                                  }
-                                }));
-                                setCreateError(null);
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="ykb-button-outline h-[46px] px-3"
-                              onClick={() => {
-                                setCreateLang(prev => ({
-                                  ...prev,
-                                  [createLanguage]: {
-                                    ...prev[createLanguage],
-                                    rows: prev[createLanguage].rows.filter((_, i) => i !== idx)
-                                  }
-                                }));
-                              }}
-                              disabled={createLang[createLanguage].rows.length <= 1}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          className="ykb-button-outline px-3 py-2 text-sm"
-                          onClick={() => {
-                            setCreateLang(prev => ({
-                              ...prev,
-                              [createLanguage]: {
-                                ...prev[createLanguage],
-                                rows: [...prev[createLanguage].rows, { value: '' }]
-                              }
-                            }));
-                          }}
-                        >
-                          Add category
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Subcategories removed */}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -633,19 +526,7 @@ export function AdminStarterandServices() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer mb-2">
-                      <input
-                        type="checkbox"
-                        checked={hasSubcategories}
-                        onChange={(e) => {
-                          setHasSubcategories(e.target.checked);
-                          setCreateError(null);
-                        }}
-                      />
-                      Has Categories
-                    </label>
-                  </div>
+                  {/* Subcategories option removed */}
                 </div>
 
                 <div>
@@ -750,7 +631,6 @@ export function AdminStarterandServices() {
                 {items.map((item) => {
                   const isEditing = editingId === item.id;
                   const display = getDisplayFields(item);
-                  const subcategories = Array.isArray(display.subcategories) ? display.subcategories : [];
                   return (
                     <div key={item.id} className="ykb-card">
                       {!isEditing ? (
@@ -805,20 +685,7 @@ export function AdminStarterandServices() {
                               )}
                             </div>
 
-                            {subcategories.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {subcategories.map((sub) => (
-                                  <span
-                                    key={`${item.id}-${sub}`}
-                                    className="text-sm rounded-full border border-border bg-surface px-3 py-1 text-textSecondary"
-                                  >
-                                    {sub}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-textSecondary">No categories</span>
-                            )}
+                            {/* Subcategories removed from display */}
                           </div>
                         </>
                       ) : (
@@ -884,66 +751,7 @@ export function AdminStarterandServices() {
                                 />
                               </div>
 
-                              {editHasSubcategories && (
-                                <div>
-                                  <label className="block text-sm font-semibold text-primary mb-2">
-                                    Categories ({editLanguage === 'en' ? 'English' : 'French'})
-                                  </label>
-                                  <div className="space-y-2">
-                                    {editLang[editLanguage].rows.map((row, idx) => (
-                                      <div key={`edit-${editLanguage}-${idx}`} className="flex gap-2">
-                                        <input
-                                          className="ykb-field flex-1"
-                                          placeholder={editLanguage === 'en' ? 'e.g., Hospitals' : 'ex. Hôpitaux'}
-                                          value={row.value}
-                                          onChange={(e) => {
-                                            setEditLang(prev => ({
-                                              ...prev,
-                                              [editLanguage]: {
-                                                ...prev[editLanguage],
-                                                rows: prev[editLanguage].rows.map((r, i) => i === idx ? { value: e.target.value } : r)
-                                              }
-                                            }));
-                                            setEditError(null);
-                                          }}
-                                        />
-                                        <button
-                                          type="button"
-                                          className="ykb-button-outline h-[46px] px-3"
-                                          onClick={() => {
-                                            setEditLang(prev => ({
-                                              ...prev,
-                                              [editLanguage]: {
-                                                ...prev[editLanguage],
-                                                rows: prev[editLanguage].rows.filter((_, i) => i !== idx)
-                                              }
-                                            }));
-                                          }}
-                                          disabled={editLang[editLanguage].rows.length <= 1}
-                                        >
-                                          Remove
-                                        </button>
-                                      </div>
-                                    ))}
-
-                                    <button
-                                      type="button"
-                                      className="ykb-button-outline px-3 py-2 text-sm"
-                                      onClick={() => {
-                                        setEditLang(prev => ({
-                                          ...prev,
-                                          [editLanguage]: {
-                                            ...prev[editLanguage],
-                                            rows: [...prev[editLanguage].rows, { value: '' }]
-                                          }
-                                        }));
-                                      }}
-                                    >
-                                      Add category
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                                          {/* Subcategories removed */}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -982,19 +790,7 @@ export function AdminStarterandServices() {
                                 </div>
                               </div>
 
-                              <div>
-                                <label className="flex items-center gap-3 text-sm text-textSecondary cursor-pointer mb-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={editHasSubcategories}
-                                    onChange={(e) => {
-                                      setEditHasSubcategories(e.target.checked);
-                                      setEditError(null);
-                                    }}
-                                  />
-                                  Has Categories
-                                </label>
-                              </div>
+                              {/* Subcategories option removed */}
                             </div>
 
                             <div>

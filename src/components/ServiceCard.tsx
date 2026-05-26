@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, ChevronDown } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ServiceCardProps {
     title: string;
@@ -14,7 +15,10 @@ interface ServiceCardProps {
 
 export function ServiceCard({ title, description, icon, imageUrl, count, ctaText = 'Request Service', onCta }: ServiceCardProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [isExpanded, setIsExpanded] = useState(false);
+    const trimmedDescription = description.trim();
+    const shouldShowExpandToggle = trimmedDescription.length > 100;
 
     const handleCta = () => {
         if (onCta) {
@@ -65,14 +69,14 @@ export function ServiceCard({ title, description, icon, imageUrl, count, ctaText
 
                 <div className="mb-3 grow">
                     <p className={`text-sm leading-relaxed text-textSecondary transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}>
-                        {description}
+                        {trimmedDescription}
                     </p>
-                    {description.length > 150 && (
+                    {shouldShowExpandToggle && (
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
                             className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-secondary hover:text-secondary/80 transition-colors"
                         >
-                            <span>{isExpanded ? 'View less' : 'View more'}</span>
+                            <span>{isExpanded ? t('services.viewLess') : t('services.viewMore')}</span>
                             <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                     )}

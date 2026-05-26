@@ -96,7 +96,7 @@ export function AboutUs() {
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-primary/5 p-4">
+                    <div className="rounded-2xl p-4">
                       <p className="text-sm font-semibold uppercase tracking-widest text-primary/70">{t('aboutUs.mission.whatWeDo.kicker')}</p>
                       <p className="mt-3 text-base leading-relaxed text-textSecondary">{t('aboutUs.mission.whatWeDo.p')}</p>
                     </div>

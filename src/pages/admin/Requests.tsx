@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react';
 import { BackendAuthError } from '../../utils/backendAuth';
 import { API_BASE, getBackendAuthHeaders } from '../../utils/backendAuth';
 import { fetchAdminRequests, type BackendAdminRequest, type BackendRequestStatus, updateAdminRequest, fetchProvidersForService, assignProviderToRequest } from '../../utils/backendAdmin';
+import { getFriendlyRequestError } from '../../utils/friendlyErrors';
 import type { BackendProviderProfile } from '../../utils/backendProviders';
 
 function formatDate(iso: string): string {
@@ -202,7 +203,7 @@ export function AdminRequests() {
 
         if (!res.ok) {
           const error = await res.text();
-          throw new Error(error || `Request failed (${res.status})`);
+          throw new Error(error || getFriendlyRequestError({ status: res.status, action: 'confirm this request resolution' }));
         }
 
         const json = (await res.json()) as { request?: BackendAdminRequest };
@@ -214,7 +215,7 @@ export function AdminRequests() {
         const status = err instanceof BackendAuthError ? err.status : undefined;
         if (status === 401) setActionError('Please login again.');
         else if (status === 0 && err instanceof BackendAuthError) setActionError(err.message);
-        else setActionError(err instanceof Error ? err.message : 'Could not confirm resolution.');
+        else setActionError(err instanceof Error ? err.message : getFriendlyRequestError({ error: err, action: 'confirm this request resolution' }));
       } finally {
         setUpdatingId(null);
       }

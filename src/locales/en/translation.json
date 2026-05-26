@@ -317,6 +317,9 @@
     "translator": "Translator",
     "apps": "Apps",
     "starterGuide": "Starter Guide",
+    "learnMore": "Learn more",
+    "viewMore": "View more",
+    "viewLess": "View less",
     "ourCoreServices": "Our Core Services",
     "upToServices": "Up to 11 services",
     "coreServicesDescription": "These are the main service categories visitors can request most often, but our work is custom-tailored to your exact needs. If your request is unique, we will still help you find the right person or solution.",
@@ -340,6 +343,9 @@
     "needPersonalizedHelp": "Need personalized help?",
     "personalizedHelpDescription": "Talk to Your Kigali Bestie and get direct support today.",
     "contactSupport": "Contact Support"
+    ,
+    "requestService": "Request service",
+    "browseProviders": "Browse service providers"
   },
   "auth": {
     "login": "Login",

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight,  Check, ClipboardList, Copy, ExternalLink, Languages, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ServiceCard } from '../components/ServiceCard';
+import { PriceGrid } from '../components/PriceGrid';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { openWhatsApp } from '../utils/whatsapp';
 import appStoreIcon from '../assets/icons/appstore.png';
@@ -128,6 +129,8 @@ function parseServiceOfferings(value: unknown): ProviderServiceOffering[] {
 
   return rows;
 }
+
+
 
 export function Services() {
   const { t, i18n } = useTranslation();
@@ -454,41 +457,7 @@ export function Services() {
             )}
           </section>
 
-          {starterKitServices.length > 0 ? (
-            <section
-              id="starter-kit-services"
-              className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-secondary bg-linear-to-br from-secondary/10 via-white to-white p-4 sm:p-6 lg:p-8 shadow-sm"
-            >
-              <div className="mb-4 flex items-center gap-3">
-                <Languages className="h-6 w-6 text-primary" />
-                <h2 className="text-2xl font-bold text-primary">Starter Kit Services</h2>
-              </div>
-              <p className="mb-4 text-sm text-textSecondary">
-                Helpful starter services for settling in quickly.
-              </p>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {starterKitServices.map((service, index) => {
-                  const { category, description } = getDisplayFields(service);
-                  const { category: englishTitle } = getEnglishFields(service);
-                  const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
-
-                  return (
-                    <div key={service.id} id={anchorId} className="scroll-mt-28">
-                      <ServiceCard
-                        title={category}
-                        description={description}
-                        imageUrl={service.imageUrl}
-                        count={index + 1}
-                        ctaText={t('services.learnMore')}
-                        onCta={() => navigate(`/guide#${anchorId}`)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
 
           <section
             id="translator"
@@ -509,25 +478,12 @@ export function Services() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {languages.map((language) => {
-                  const priceRows = Object.entries(language.prices ?? {})
-                    .filter(([unit, amount]) => unit.trim().length > 0 && Number.isFinite(amount) && amount > 0)
-                    .sort(([a], [b]) => a.localeCompare(b));
-
                   return (
                     <article key={language.id} className="ykb-card">
                       <h3 className="text-lg font-semibold text-primary">{language.title}</h3>
                       <p className="mt-2 text-xs text-textSecondary">Available pricing options</p>
-                      <div className="mt-3 space-y-2">
-                        {priceRows.length === 0 ? (
-                          <div className="text-sm text-textSecondary">No prices configured yet.</div>
-                        ) : (
-                          priceRows.map(([unit, amount]) => (
-                            <div key={`${language.id}-${unit}`} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-                              <span className="capitalize text-textSecondary">{unit}</span>
-                              <span className="font-semibold text-primary">{amount}</span>
-                            </div>
-                          ))
-                        )}
+                      <div className="mt-3">
+                        <PriceGrid prices={language.prices} />
                       </div>
 
                       <button
@@ -550,6 +506,78 @@ export function Services() {
               </div>
             )}
           </section>
+
+
+
+                    {starterKitServices.length > 0 ? (
+                      <section
+                        id="starter-kit-services"
+                        className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-secondary bg-linear-to-br from-secondary/10 via-white to-white p-4 sm:p-6 lg:p-8 shadow-sm"
+                      >
+                        <div className="mb-4 flex items-center gap-3">
+                          <Languages className="h-6 w-6 text-primary" />
+                          <h2 className="text-2xl font-bold text-primary">Starter Kit Services</h2>
+                        </div>
+                        <p className="mb-4 text-sm text-textSecondary">
+                          Helpful starter services for settling in quickly.
+                        </p>
+
+                        {/* Show only a single row of up to 4 starter-kit services */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          {starterKitServices.slice(0, 4).map((service, index) => {
+                            const { category, description } = getDisplayFields(service);
+                            const { category: englishTitle, description: englishDescription } = getEnglishFields(service);
+                            const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
+
+                            const canBrowseProviders = service.allowProviderRegistration === true;
+
+                            const ctaText = PHASE1_ENABLED
+                              ? t('services.requestService')
+                              : canBrowseProviders
+                                ? t('services.browseProviders')
+                                : t('services.requestService');
+
+                            const onCta = PHASE1_ENABLED
+                              ? () => navigate(`/request?service=${encodeURIComponent(englishTitle)}`)
+                              : canBrowseProviders
+                                ? () => navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`)
+                                : () =>
+                                    openWhatsApp(
+                                      [
+                                        'Hello Your Kigali Bestie, I would like to request this service:',
+                                        `Service: ${englishTitle}`,
+                                        englishDescription ? `Description: ${englishDescription}` : null,
+                                      ]
+                                        .filter(Boolean)
+                                        .join('\n')
+                                    );
+
+                            return (
+                              <div key={service.id} id={anchorId} className="scroll-mt-28">
+                                <ServiceCard
+                                  title={category}
+                                  description={description}
+                                  imageUrl={service.imageUrl}
+                                  count={index + 1}
+                                  ctaText={ctaText}
+                                  onCta={onCta}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-6 text-center">
+                          <button
+                            onClick={() => navigate('/guide')}
+                            className="ykb-button-outline inline-flex items-center gap-2"
+                          >
+                            <span>{t('services.learnMore')}</span>
+                            <span>({starterKitServices.length})</span>
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
 
           <section
             id="apps"

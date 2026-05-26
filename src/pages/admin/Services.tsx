@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Calendar, Home, Globe, ShoppingBag, Coffee, Car, Heart, Pencil, Upload, Loader } from 'lucide-react';
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { getFriendlyRequestError, getFriendlyResponseError, getFriendlyUnexpectedResponseError } from '../../utils/friendlyErrors';
 import { uploadServiceImage } from '../../utils/uploadImage';
 
 interface ServiceCardProps {
@@ -159,25 +160,7 @@ type ServiceSlot = {
     error: string | null;
 };
 
-type ApiErrorResponse = {
-    error?: {
-        message?: unknown;
-    };
-};
-
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
-
-async function readApiErrorMessage(response: Response): Promise<string> {
-    try {
-        const data = (await response.json()) as ApiErrorResponse;
-        const message = data?.error?.message;
-        if (typeof message === 'string' && message.trim().length > 0) return message;
-    } catch {
-        // ignore
-    }
-
-    return `Request failed (${response.status})`;
-}
 
 function buildSlots(services: PublicService[]): ServiceSlot[] {
     const slots: ServiceSlot[] = [];
@@ -241,7 +224,7 @@ export function AdminServices() {
         const run = async () => {
             try {
                 const response = await fetch(`${API_BASE}/services`);
-                if (!response.ok) throw new Error('Failed to load services');
+                    if (!response.ok) throw new Error(await getFriendlyResponseError(response, 'load services'));
 
                 const json = (await response.json()) as { services?: PublicService[] };
                 const list = Array.isArray(json.services) ? json.services : [];
@@ -294,9 +277,7 @@ export function AdminServices() {
                         ? {
                               ...currentSlot,
                               saving: false,
-                              error: !title ? 'Service title is required.' : 
-                                     !description ? 'Description is required.' : 
-                                     'Service image is required.',
+                              error: !title ? 'Service title is required.' : !description ? 'Description is required.' : 'Service image is required.',
                           }
                         : currentSlot
                 )
@@ -312,25 +293,23 @@ export function AdminServices() {
 
         try {
             if (!slot.service) {
-                console.log('Creating new service with:', { title, description, imageUrl: slot.draft.imageUrl, imagePublicId: slot.draft.imagePublicId });
                 const response = await fetch(`${API_BASE}/services`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        title, 
-                        description, 
+                    body: JSON.stringify({
+                        title,
+                        description,
                         imageUrl: slot.draft.imageUrl,
-                        imagePublicId: slot.draft.imagePublicId 
+                        imagePublicId: slot.draft.imagePublicId,
                     }),
                 });
 
                 if (!response.ok) {
-                    const message = await readApiErrorMessage(response);
-                    throw new Error(message);
+                    throw new Error(await getFriendlyResponseError(response, 'save this service'));
                 }
 
                 const json = (await response.json()) as { service?: PublicService };
-                if (!json.service) throw new Error('Invalid response');
+                if (!json.service) throw new Error(getFriendlyUnexpectedResponseError('save this service'));
 
                 setSlots((prev) =>
                     prev.map((currentSlot, slotIndex) =>
@@ -338,11 +317,11 @@ export function AdminServices() {
                             ? {
                                   ...currentSlot,
                                   service: json.service!,
-                                  draft: { 
-                                      title: json.service!.title, 
+                                  draft: {
+                                      title: json.service!.title,
                                       description: json.service!.description,
                                       imageUrl: json.service!.imageUrl ?? '',
-                                      imagePublicId: json.service!.imagePublicId ?? ''
+                                      imagePublicId: json.service!.imagePublicId ?? '',
                                   },
                                   saving: false,
                                   error: null,
@@ -351,25 +330,23 @@ export function AdminServices() {
                     )
                 );
             } else {
-                console.log('Updating service with:', { title, description, imageUrl: slot.draft.imageUrl, imagePublicId: slot.draft.imagePublicId });
                 const response = await fetch(`${API_BASE}/services/${slot.service.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        title, 
-                        description, 
+                    body: JSON.stringify({
+                        title,
+                        description,
                         imageUrl: slot.draft.imageUrl,
-                        imagePublicId: slot.draft.imagePublicId 
+                        imagePublicId: slot.draft.imagePublicId,
                     }),
                 });
 
                 if (!response.ok) {
-                    const message = await readApiErrorMessage(response);
-                    throw new Error(message);
+                    throw new Error(await getFriendlyResponseError(response, 'save this service'));
                 }
 
                 const json = (await response.json()) as { service?: PublicService };
-                if (!json.service) throw new Error('Invalid response');
+                if (!json.service) throw new Error(getFriendlyUnexpectedResponseError('save this service'));
 
                 setSlots((prev) =>
                     prev.map((currentSlot, slotIndex) =>
@@ -377,11 +354,11 @@ export function AdminServices() {
                             ? {
                                   ...currentSlot,
                                   service: json.service!,
-                                  draft: { 
-                                      title: json.service!.title, 
+                                  draft: {
+                                      title: json.service!.title,
                                       description: json.service!.description,
                                       imageUrl: json.service!.imageUrl ?? '',
-                                      imagePublicId: json.service!.imagePublicId ?? ''
+                                      imagePublicId: json.service!.imagePublicId ?? '',
                                   },
                                   saving: false,
                                   error: null,
@@ -393,7 +370,7 @@ export function AdminServices() {
 
             setActiveEditIndex(null);
         } catch (error) {
-            const message = error instanceof Error && error.message ? error.message : 'Could not save. Make sure the backend is running.';
+            const message = error instanceof Error ? getFriendlyRequestError({ error, action: 'save this service' }) : 'Could not save. Make sure the backend is running.';
 
             setSlots((prev) =>
                 prev.map((currentSlot, slotIndex) =>

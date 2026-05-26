@@ -37,8 +37,10 @@ export function Navbar() {
 
     const navLinks = [
         { path: '/', label: t('navigation.home') },
+
         { path: '/services', label: t('navigation.services') },
         { path: '/guide', label: t('navigation.guide') },
+                { path: '/about', label: t('common.about') },
         // { path: '/subscribe', label: t('navigation.subscribe') },
         ...(isLoggedIn
             ? [
@@ -120,9 +122,9 @@ export function Navbar() {
                         <img
                             src={logo}
                             alt="KIGALI BESPOKE CONCIERGE"
-                            className="w-20 h-20 object-contain transition-transform duration-300 group-hover:scale-105"
+                            className="w-8 h-8 sm:w-20 sm:h-20 object-contain transition-transform duration-300 group-hover:scale-105"
                         />
-                        <span className="font-semibold text-primary text-lg hidden sm:inline">
+                        <span className="font-semibold text-primary text-sm sm:text-lg">
                             KIGALI BESPOKE CONCIERGE
                         </span>
                     </Link>
