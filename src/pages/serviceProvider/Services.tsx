@@ -34,6 +34,30 @@ export function ServiceProviderServices() {
 	const accessToken = session?.accessToken;
 	const userRole = session?.user?.role;
 
+	  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const existingScript = document.querySelector('script[src="https://www.googletagmanager.com/gtag/js?id=G-5T7DTFNYP6"]');
+    if (existingScript) return;
+
+    const externalScript = document.createElement('script');
+    externalScript.async = true;
+    externalScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-5T7DTFNYP6';
+    document.head.appendChild(externalScript);
+
+    const inlineScript = document.createElement('script');
+    inlineScript.text = `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-5T7DTFNYP6');`;
+    document.head.appendChild(inlineScript);
+
+    return () => {
+      document.head.removeChild(externalScript);
+      document.head.removeChild(inlineScript);
+    };
+  }, []);
+
 	useEffect(() => {
 		if (!accessToken) return;
 		if (userRole && userRole !== 'PROVIDER') return;

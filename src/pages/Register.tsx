@@ -97,9 +97,9 @@ function isNonEmpty(value: string): boolean {
 
 function renderFieldLabel(label: string, htmlFor: string, required = true, t?: (key: string) => string) {
   return (
-    <label className="block text-sm font-semibold text-primary mb-1.5" htmlFor={htmlFor}>
+    <label className="mb-1.5 block text-sm font-semibold text-primary" htmlFor={htmlFor}>
       {label}
-      {!required && t ? <span className="text-gray-400">{t('auth.optional')}</span> : null}
+      {!required && t ? <span className="text-gray-400"> {t('auth.optional')}</span> : null}
     </label>
   );
 }
@@ -208,8 +208,7 @@ export function Register() {
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [serviceLoadError, setServiceLoadError] = useState<string | null>(null);
   const [publicServices, setPublicServices] = useState<PublicService[]>([]);
-  
-  // Email verification states
+
   const [emailVerified, setEmailVerified] = useState(false);
   const [showVerificationCode, setShowVerificationCode] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -670,27 +669,24 @@ export function Register() {
   };
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-12 px-4 pt-20">
-      <div className="max-w-6xl mx-auto">
-        {/* Unified Card Container */}
-        <div className="bg-white  shadow-xl overflow-hidden">
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-12 pt-20">
+      <div className="mx-auto max-w-3xl">
+        <div className="overflow-hidden bg-white shadow-lg">
           {success ? (
-            <div className="text-center space-y-6 py-16 px-8">
-              <div className="flex justify-center">
-                <img src={logo} alt="Your Kigali Bestie" className="h-14 w-auto object-contain" />
-              </div>
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="space-y-6 px-6 py-12 text-center sm:px-8">
+              <img src={logo} alt="Your Kigali Bestie" className="mx-auto h-14 w-auto object-contain" />
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900">{t('auth.registrationComplete')}</h2>
-              <p className="text-gray-600 max-w-md mx-auto">
-                {safeNext
-                  ? t('auth.redirecting')
-                  : t('auth.accountCreated')}
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-gray-900">{t('auth.registrationComplete')}</h2>
+                <p className="mx-auto max-w-md text-sm text-gray-600">
+                  {safeNext ? t('auth.redirecting') : t('auth.accountCreated')}
+                </p>
+              </div>
+              <div className="flex flex-col justify-center gap-3 sm:flex-row">
                 <button type="button" className="ykb-button-primary" onClick={resetForm}>
                   {t('auth.registerAnother')}
                 </button>
@@ -700,647 +696,594 @@ export function Register() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col md:flex-row">
-              {/* Sidebar Section - Now visually integrated */}
-              <div className="md:w-2/5 bg-primary p-8 text-white">
-                <div className="space-y-6">
-                  <div>
+            <div className="px-6 py-6 sm:px-8 sm:py-8">
+              <div className="mb-6 text-center">
+                <img src={logo} alt="Your Kigali Bestie" className="mx-auto h-16 w-auto object-contain" />
+                <div className="mx-auto mt-4 h-px w-8 bg-secondary" />
+                <h1 className="mt-4 text-xl font-semibold text-primary">{t('auth.createAccountTitle')}</h1>
+                <p className="mt-1 text-xs text-textSecondary">{t('auth.createAccountDescription')}</p>
 
-                    <h1 className="text-3xl font-bold mb-6 text-white">{t('auth.createAccountTitle')}</h1>
-                    <p className="text-white/80 text-sm leading-relaxed">
-                      {t('auth.createAccountDescription')}
-                    </p>
+                <div className="mt-5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-medium text-textSecondary">
+                    <span>{t('auth.registrationProgress')}</span>
+                    <span className="text-sm font-bold text-primary">
+                      {!role ? '—' : role === 'serviceProvider' ? `${step}/2` : '1/1'}
+                    </span>
                   </div>
-
-                  <div className="border-t border-white/20 pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-medium text-white/80">{t('auth.registrationProgress')}</span>
-                      <span className="text-2xl font-bold">
-                        {!role ? '—' : role === 'serviceProvider' ? `${step}/2` : '1/1'}
-                      </span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-2">
-                      <div 
-                        className="bg-secondary h-2 rounded-full transition-all duration-300" 
-                        style={{ width: !role ? '0%' : role === 'serviceProvider' ? (step === 1 ? '50%' : '100%') : '100%' }}
-                      />
-                    </div>
-                  </div>
-
-                  {role === 'serviceProvider' ? (
-                    <div className="space-y-3 pt-4">
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-secondary text-primary' : 'bg-white/20 text-white/60'}`}>1</div>
-                        <span className={step >= 1 ? 'text-white' : 'text-white/60'}>{t('auth.personalInformation')}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === 2 ? 'bg-secondary text-primary' : 'bg-white/20 text-white/60'}`}>2</div>
-                        <span className={step === 2 ? 'text-white font-medium' : 'text-white/60'}>{t('auth.accountCredentials')}</span>
-                      </div>
-                    </div>
-                  ) : role === 'starter' ? (
-                    <div className="space-y-3 pt-4">
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-secondary text-primary">1</div>
-                        <span className="text-white">{t('auth.starterDetails')}</span>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="pt-6 border-t border-white/20">
-                    <p className="text-xs uppercase tracking-wider text-secondary font-semibold mb-3">{t('auth.selectedAccountType')}</p>
-                    <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                      <p className="font-semibold">
-                        {!role ? t('auth.selectType') : role === 'serviceProvider' ? t('auth.serviceProvider') : t('auth.starter')}
-                      </p>
-                      <p className="text-xs text-white/70 mt-1">
-                        {role === 'serviceProvider'
-                          ? t('auth.serviceProviderLongDescription')
-                          : role === 'starter'
-                            ? t('auth.starterLongDescription')
-                            : t('auth.chooseType')}
-                      </p>
-                    </div>
+                  <div className="h-2 w-full rounded-full bg-gray-100">
+                    <div
+                      className="h-2 rounded-full bg-secondary transition-all duration-300"
+                      style={{ width: !role ? '0%' : role === 'serviceProvider' ? (step === 1 ? '50%' : '100%') : '100%' }}
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Form Section */}
-              <div className="md:w-3/5 p-8">
-                <div className="flex justify-center mb-4">
-                  <img src={logo} alt="Your Kigali Bestie" className="h-26 w-auto object-contain" />
-                </div>
-                <form
-                  onSubmit={role === 'serviceProvider' ? (step === 1 ? handleFirstStepSubmit : handleSubmit) : handleStarterSubmit}
-                  className="space-y-5"
-                  noValidate
-                >
-                  {showRequestNotice ? (
-                    <div className="ykb-alert ykb-alert-info">
-                      {t('auth.requestNotice')}
-                    </div>
-                  ) : null}
+              <form
+                onSubmit={role === 'serviceProvider' ? (step === 1 ? handleFirstStepSubmit : handleSubmit) : handleStarterSubmit}
+                className="space-y-5"
+                noValidate
+              >
+                {showRequestNotice ? <div className="ykb-alert ykb-alert-info">{t('auth.requestNotice')}</div> : null}
 
-                  {error && (
-                    <div className="ykb-alert ykb-alert-error">
-                      {error}
-                    </div>
-                  )}
+                {error ? <div className="ykb-alert ykb-alert-error">{error}</div> : null}
 
-                  {PHASE1_ENABLED ? (
+                {PHASE1_ENABLED ? (
+                  <div>
+                    {renderFieldLabel(t('auth.registerAs'), 'role')}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                          role === 'starter'
+                            ? 'border-secondary bg-secondary/10'
+                            : 'border-border bg-surface hover:border-secondary/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="role"
+                          value="starter"
+                          checked={role === 'starter'}
+                          onChange={() => {
+                            setRole('starter');
+                            setStep(1);
+                            setError(null);
+                            setFieldErrors({});
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
+                        />
+                        <span className="text-sm text-primary">
+                          <span className="block font-semibold">{t('auth.starter')}</span>
+                          <span className="block text-xs text-textSecondary">{t('auth.starterDescription')}</span>
+                        </span>
+                      </label>
+
+                      <label
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                          role === 'serviceProvider'
+                            ? 'border-secondary bg-secondary/10'
+                            : 'border-border bg-surface hover:border-secondary/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="role"
+                          value="serviceProvider"
+                          checked={role === 'serviceProvider'}
+                          onChange={() => {
+                            setRole('serviceProvider');
+                            setStep(1);
+                            setError(null);
+                            setFieldErrors({});
+                            setProvider(buildDefaultProviderState(publicServices));
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
+                        />
+                        <span className="text-sm text-primary">
+                          <span className="block font-semibold">{t('auth.serviceProvider')}</span>
+                          <span className="block text-xs text-textSecondary">{t('auth.serviceProviderDescription')}</span>
+                        </span>
+                      </label>
+                    </div>
+                    {inlineError('role')}
+                  </div>
+                ) : null}
+
+                {role === '' ? (
+                  <div className="ykb-alert ykb-alert-info">{t('auth.chooseType')}</div>
+                ) : role === 'starter' ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.firstName'), 'firstName')}
+                        <input
+                          id="firstName"
+                          required
+                          value={identity.firstName}
+                          onChange={(event) => {
+                            setIdentity((prev) => ({ ...prev, firstName: event.target.value }));
+                            clearFieldError('firstName');
+                          }}
+                          className={fieldClass('firstName')}
+                          placeholder="e.g. Aline"
+                        />
+                        {inlineError('firstName')}
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(t('auth.middleName'), 'middleName', false, t)}
+                        <input
+                          id="middleName"
+                          value={identity.middleName}
+                          onChange={(event) => setIdentity((prev) => ({ ...prev, middleName: event.target.value }))}
+                          className="ykb-field"
+                          placeholder="e.g. Marie"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.lastName'), 'lastName')}
+                        <input
+                          id="lastName"
+                          required
+                          value={identity.lastName}
+                          onChange={(event) => {
+                            setIdentity((prev) => ({ ...prev, lastName: event.target.value }));
+                            clearFieldError('lastName');
+                          }}
+                          className={fieldClass('lastName')}
+                          placeholder="e.g. Uwase"
+                        />
+                        {inlineError('lastName')}
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(t('auth.country'), 'country')}
+                        <input
+                          id="country"
+                          required
+                          value={identity.country}
+                          onChange={(event) => {
+                            setIdentity((prev) => ({ ...prev, country: event.target.value }));
+                            clearFieldError('country');
+                          }}
+                          className={fieldClass('country')}
+                          placeholder="e.g. Rwanda"
+                        />
+                        {inlineError('country')}
+                      </div>
+                    </div>
+
                     <div>
-                      {renderFieldLabel(t('auth.registerAs'), 'role')}
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <label
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                            role === 'starter'
-                              ? 'border-secondary bg-secondary/10'
-                              : 'border-border bg-surface hover:border-secondary/30'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="role"
-                            value="starter"
-                            checked={role === 'starter'}
-                            onChange={() => {
-                              setRole('starter');
-                              setStep(1);
-                              setError(null);
-                              setFieldErrors({});
-                            }}
-                            className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
-                          />
-                          <span className="text-sm text-primary">
-                            <span className="block font-semibold">{t('auth.starter')}</span>
-                            <span className="block text-xs text-textSecondary">{t('auth.starterDescription')}</span>
-                          </span>
-                        </label>
-
-                        <label
-                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-                            role === 'serviceProvider'
-                              ? 'border-secondary bg-secondary/10'
-                              : 'border-border bg-surface hover:border-secondary/30'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="role"
-                            value="serviceProvider"
-                            checked={role === 'serviceProvider'}
-                            onChange={() => {
-                              setRole('serviceProvider');
-                              setStep(1);
-                              setError(null);
-                              setFieldErrors({});
-                              setProvider(buildDefaultProviderState(publicServices));
-                            }}
-                            className="mt-1 h-4 w-4 rounded border-border text-secondary focus:ring-secondary"
-                          />
-                          <span className="text-sm text-primary">
-                            <span className="block font-semibold">{t('auth.serviceProvider')}</span>
-                            <span className="block text-xs text-textSecondary">{t('auth.serviceProviderDescription')}</span>
-                          </span>
-                        </label>
-                      </div>
-                      {inlineError('role')}
+                      {renderFieldLabel(t('auth.phone'), 'phone')}
+                      <input
+                        id="phone"
+                        required
+                        value={identity.phone}
+                        onChange={(event) => {
+                          setIdentity((prev) => ({ ...prev, phone: onlyDigits(event.target.value).slice(0, 15) }));
+                          clearFieldError('phone');
+                        }}
+                        className={fieldClass('phone')}
+                        inputMode="tel"
+                        placeholder="e.g. 0798891543"
+                      />
+                      {inlineError('phone')}
                     </div>
-                  ) : null}
 
-                  {role === '' ? (
-                    <div className="ykb-alert ykb-alert-info">{t('auth.chooseType')}</div>
-                  ) : role === 'starter' ? (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.firstName'), 'firstName')}
+                    <div>
+                      {renderFieldLabel(t('auth.emailAddress'), 'email')}
+                      <div className="space-y-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
                           <input
-                            id="firstName"
+                            id="email"
+                            type="email"
                             required
-                            value={identity.firstName}
+                            value={account.email}
                             onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, firstName: event.target.value }));
-                              clearFieldError('firstName');
+                              setAccount((prev) => ({ ...prev, email: event.target.value }));
+                              clearFieldError('email');
+                              setEmailVerified(false);
+                              setShowVerificationCode(false);
+                              setVerificationCode('');
                             }}
-                            className={fieldClass('firstName')}
-                            placeholder="e.g. Aline"
+                            className={fieldClass('email')}
+                            placeholder="you@example.com"
+                            disabled={emailVerified}
                           />
-                          {inlineError('firstName')}
-                        </div>
-
-                        <div>
-                          {renderFieldLabel(t('auth.middleName'), 'middleName', false, t)}
-                          <input
-                            id="middleName"
-                            value={identity.middleName}
-                            onChange={(event) => setIdentity((prev) => ({ ...prev, middleName: event.target.value }))}
-                            className="ykb-field"
-                            placeholder="e.g. Marie"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.lastName'), 'lastName')}
-                          <input
-                            id="lastName"
-                            required
-                            value={identity.lastName}
-                            onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, lastName: event.target.value }));
-                              clearFieldError('lastName');
-                            }}
-                            className={fieldClass('lastName')}
-                            placeholder="e.g. Uwase"
-                          />
-                          {inlineError('lastName')}
-                        </div>
-
-                        <div>
-                          {renderFieldLabel(t('auth.country'), 'country')}
-                          <input
-                            id="country"
-                            required
-                            value={identity.country}
-                            onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, country: event.target.value }));
-                              clearFieldError('country');
-                            }}
-                            className={fieldClass('country')}
-                            placeholder="e.g. Rwanda"
-                          />
-                          {inlineError('country')}
-                        </div>
-                      </div>
-
-                      <div>
-                        {renderFieldLabel(t('auth.phone'), 'phone')}
-                        <input
-                          id="phone"
-                          required
-                          value={identity.phone}
-                          onChange={(event) => {
-                            setIdentity((prev) => ({ ...prev, phone: onlyDigits(event.target.value).slice(0, 15) }));
-                            clearFieldError('phone');
-                          }}
-                          className={fieldClass('phone')}
-                          inputMode="tel"
-                          placeholder="e.g. 0798891543"
-                        />
-                        {inlineError('phone')}
-                      </div>
-
-                      <div>
-                        {renderFieldLabel(t('auth.emailAddress'), 'email')}
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              id="email"
-                              type="email"
-                              required
-                              value={account.email}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, email: event.target.value }));
-                                clearFieldError('email');
-                                setEmailVerified(false);
-                                setShowVerificationCode(false);
-                                setVerificationCode('');
-                              }}
-                              className={fieldClass('email')}
-                              placeholder="you@example.com"
-                              disabled={emailVerified}
-                            />
-                            {!emailVerified && (
-                              <button
-                                type="button"
-                                onClick={sendEmailVerificationCode}
-                                disabled={sendingVerificationCode || !account.email.trim()}
-                                className="px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
-                              >
-                                {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
-                              </button>
-                            )}
-                            {emailVerified && (
-                              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-700 font-semibold text-sm">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                Verified
-                              </div>
-                            )}
-                          </div>
-
-                          {showVerificationCode && !emailVerified && (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={verificationCode}
-                                onChange={(e) => setVerificationCode(e.target.value)}
-                                placeholder="Enter 6-digit verification code"
-                                className="ykb-field"
-                              />
-                              <button
-                                type="button"
-                                onClick={verifyEmailCode}
-                                disabled={isVerifyingEmail || !verificationCode.trim()}
-                                className="w-full px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                              >
-                                {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
-                              </button>
+                          {!emailVerified ? (
+                            <button
+                              type="button"
+                              onClick={sendEmailVerificationCode}
+                              disabled={sendingVerificationCode || !account.email.trim()}
+                              className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+                              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Verified
                             </div>
                           )}
                         </div>
-                        {inlineError('email')}
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.password'), 'password')}
-                          <div className="relative">
+                        {showVerificationCode && !emailVerified ? (
+                          <div className="space-y-2">
                             <input
-                              id="password"
-                              type={showPassword ? 'text' : 'password'}
-                              required
-                              value={account.password}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, password: event.target.value }));
-                                clearFieldError('password');
-                              }}
-                              className={fieldClass('password', 'pr-10')}
-                              autoComplete="new-password"
-                              placeholder={t('auth.minCharacters', { length: PASSWORD_MIN_LENGTH })}
+                              type="text"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value)}
+                              placeholder="Enter 6-digit verification code"
+                              className="ykb-field"
                             />
                             <button
                               type="button"
-                              onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-primary transition"
-                              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                              onClick={verifyEmailCode}
+                              disabled={isVerifyingEmail || !verificationCode.trim()}
+                              className="w-full rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
                             </button>
                           </div>
-                          {inlineError('password')}
-                        </div>
-
-                        <div>
-                          {renderFieldLabel(t('auth.confirmPassword'), 'confirm')}
-                          <div className="relative">
-                            <input
-                              id="confirm"
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              required
-                              value={account.confirm}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, confirm: event.target.value }));
-                                clearFieldError('confirm');
-                              }}
-                              className={fieldClass('confirm', 'pr-10')}
-                              autoComplete="new-password"
-                              placeholder={t('auth.confirmYourPassword')}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-primary transition"
-                              aria-label={showConfirmPassword ? t('auth.hideConfirmPassword') : t('auth.showConfirmPassword')}
-                            >
-                              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                          {inlineError('confirm')}
-                        </div>
+                        ) : null}
                       </div>
+                      {inlineError('email')}
+                    </div>
 
-                      <button
-                        type="submit"
-                        className="w-full ykb-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? t('auth.creatingAccount') : t('auth.createStarterAccount')}
-                      </button>
-                    </>
-                  ) : step === 1 ? (
-                    <>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.firstName'), 'firstName')}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.password'), 'password')}
+                        <div className="relative">
                           <input
-                            id="firstName"
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
                             required
-                            value={identity.firstName}
+                            value={account.password}
                             onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, firstName: event.target.value }));
-                              clearFieldError('firstName');
+                              setAccount((prev) => ({ ...prev, password: event.target.value }));
+                              clearFieldError('password');
                             }}
-                            className={fieldClass('firstName')}
-                            placeholder="e.g. Aline"
+                            className={fieldClass('password', 'pr-10')}
+                            autoComplete="new-password"
+                            placeholder={t('auth.minCharacters', { length: PASSWORD_MIN_LENGTH })}
                           />
-                          {inlineError('firstName')}
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary transition hover:text-primary"
+                            aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
                         </div>
-
-                        <div>
-                          {renderFieldLabel(t('auth.middleName'), 'middleName', false, t)}
-                          <input
-                            id="middleName"
-                            value={identity.middleName}
-                            onChange={(event) => setIdentity((prev) => ({ ...prev, middleName: event.target.value }))}
-                            className="ykb-field"
-                            placeholder="e.g. Marie"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.lastName'), 'lastName')}
-                          <input
-                            id="lastName"
-                            required
-                            value={identity.lastName}
-                            onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, lastName: event.target.value }));
-                              clearFieldError('lastName');
-                            }}
-                            className={fieldClass('lastName')}
-                            placeholder="e.g. Uwase"
-                          />
-                          {inlineError('lastName')}
-                        </div>
-
-                        <div>
-                          {renderFieldLabel(t('auth.country'), 'country')}
-                          <input
-                            id="country"
-                            required
-                            value={identity.country}
-                            onChange={(event) => {
-                              setIdentity((prev) => ({ ...prev, country: event.target.value }));
-                              clearFieldError('country');
-                            }}
-                            className={fieldClass('country')}
-                            placeholder="e.g. Rwanda"
-                          />
-                          {inlineError('country')}
-                        </div>
+                        {inlineError('password')}
                       </div>
 
                       <div>
-                        {renderFieldLabel(t('auth.phone'), 'phone')}
+                        {renderFieldLabel(t('auth.confirmPassword'), 'confirm')}
+                        <div className="relative">
+                          <input
+                            id="confirm"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            required
+                            value={account.confirm}
+                            onChange={(event) => {
+                              setAccount((prev) => ({ ...prev, confirm: event.target.value }));
+                              clearFieldError('confirm');
+                            }}
+                            className={fieldClass('confirm', 'pr-10')}
+                            autoComplete="new-password"
+                            placeholder={t('auth.confirmYourPassword')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary transition hover:text-primary"
+                            aria-label={showConfirmPassword ? t('auth.hideConfirmPassword') : t('auth.showConfirmPassword')}
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {inlineError('confirm')}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full ykb-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? t('auth.creatingAccount') : t('auth.createStarterAccount')}
+                    </button>
+                  </>
+                ) : step === 1 ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.firstName'), 'firstName')}
                         <input
-                          id="phone"
+                          id="firstName"
                           required
-                          value={identity.phone}
+                          value={identity.firstName}
                           onChange={(event) => {
-                            setIdentity((prev) => ({ ...prev, phone: onlyDigits(event.target.value).slice(0, 15) }));
-                            clearFieldError('phone');
+                            setIdentity((prev) => ({ ...prev, firstName: event.target.value }));
+                            clearFieldError('firstName');
                           }}
-                          className={fieldClass('phone')}
-                          inputMode="tel"
-                          placeholder="e.g. 0798891543"
+                          className={fieldClass('firstName')}
+                          placeholder="e.g. Aline"
                         />
-                        {inlineError('phone')}
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full ykb-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
-                        disabled={isSubmitting}
-                      >
-                        {t('auth.continueAccountSetup')}
-                      </button>
-                    </>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">{t('auth.reviewInfo')}</h3>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div><span className="text-gray-500">{t('auth.name')}:</span> {identity.firstName} {identity.middleName} {identity.lastName}</div>
-                          <div><span className="text-gray-500">{t('auth.country')}:</span> {identity.country}</div>
-                          <div><span className="text-gray-500">{t('auth.phone')}:</span> {identity.phone}</div>
-                          <div><span className="text-gray-500">{t('auth.type')}:</span> {role === 'serviceProvider' ? t('auth.serviceProvider') : t('auth.starter')}</div>
-                        </div>
+                        {inlineError('firstName')}
                       </div>
 
                       <div>
-                        {renderFieldLabel(t('auth.emailAddress'), 'email')}
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              id="email"
-                              type="email"
-                              required
-                              value={account.email}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, email: event.target.value }));
-                                clearFieldError('email');
-                                setEmailVerified(false);
-                                setShowVerificationCode(false);
-                                setVerificationCode('');
-                              }}
-                              className={fieldClass('email')}
-                              placeholder="you@example.com"
-                              disabled={emailVerified}
-                            />
-                            {!emailVerified && (
-                              <button
-                                type="button"
-                                onClick={sendEmailVerificationCode}
-                                disabled={sendingVerificationCode || !account.email.trim()}
-                                className="px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
-                              >
-                                {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
-                              </button>
-                            )}
-                            {emailVerified && (
-                              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-700 font-semibold text-sm">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                Verified
-                              </div>
-                            )}
-                          </div>
+                        {renderFieldLabel(t('auth.middleName'), 'middleName', false, t)}
+                        <input
+                          id="middleName"
+                          value={identity.middleName}
+                          onChange={(event) => setIdentity((prev) => ({ ...prev, middleName: event.target.value }))}
+                          className="ykb-field"
+                          placeholder="e.g. Marie"
+                        />
+                      </div>
+                    </div>
 
-                          {showVerificationCode && !emailVerified && (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={verificationCode}
-                                onChange={(e) => setVerificationCode(e.target.value)}
-                                placeholder="Enter 6-digit verification code"
-                                className="ykb-field"
-                              />
-                              <button
-                                type="button"
-                                onClick={verifyEmailCode}
-                                disabled={isVerifyingEmail || !verificationCode.trim()}
-                                className="w-full px-4 py-2 bg-secondary text-white rounded-lg font-semibold text-sm hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                              >
-                                {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
-                              </button>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.lastName'), 'lastName')}
+                        <input
+                          id="lastName"
+                          required
+                          value={identity.lastName}
+                          onChange={(event) => {
+                            setIdentity((prev) => ({ ...prev, lastName: event.target.value }));
+                            clearFieldError('lastName');
+                          }}
+                          className={fieldClass('lastName')}
+                          placeholder="e.g. Uwase"
+                        />
+                        {inlineError('lastName')}
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(t('auth.country'), 'country')}
+                        <input
+                          id="country"
+                          required
+                          value={identity.country}
+                          onChange={(event) => {
+                            setIdentity((prev) => ({ ...prev, country: event.target.value }));
+                            clearFieldError('country');
+                          }}
+                          className={fieldClass('country')}
+                          placeholder="e.g. Rwanda"
+                        />
+                        {inlineError('country')}
+                      </div>
+                    </div>
+
+                    <div>
+                      {renderFieldLabel(t('auth.phone'), 'phone')}
+                      <input
+                        id="phone"
+                        required
+                        value={identity.phone}
+                        onChange={(event) => {
+                          setIdentity((prev) => ({ ...prev, phone: onlyDigits(event.target.value).slice(0, 15) }));
+                          clearFieldError('phone');
+                        }}
+                        className={fieldClass('phone')}
+                        inputMode="tel"
+                        placeholder="e.g. 0798891543"
+                      />
+                      {inlineError('phone')}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full ykb-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmitting}
+                    >
+                      {t('auth.continueAccountSetup')}
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <h3 className="mb-2 text-sm font-semibold text-gray-700">{t('auth.reviewInfo')}</h3>
+                      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                        <div>
+                          <span className="text-gray-500">{t('auth.name')}:</span> {identity.firstName} {identity.middleName} {identity.lastName}
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('auth.country')}:</span> {identity.country}
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('auth.phone')}:</span> {identity.phone}
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('auth.type')}:</span> {role === 'serviceProvider' ? t('auth.serviceProvider') : t('auth.starter')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      {renderFieldLabel(t('auth.emailAddress'), 'email')}
+                      <div className="space-y-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <input
+                            id="email"
+                            type="email"
+                            required
+                            value={account.email}
+                            onChange={(event) => {
+                              setAccount((prev) => ({ ...prev, email: event.target.value }));
+                              clearFieldError('email');
+                              setEmailVerified(false);
+                              setShowVerificationCode(false);
+                              setVerificationCode('');
+                            }}
+                            className={fieldClass('email')}
+                            placeholder="you@example.com"
+                            disabled={emailVerified}
+                          />
+                          {!emailVerified ? (
+                            <button
+                              type="button"
+                              onClick={sendEmailVerificationCode}
+                              disabled={sendingVerificationCode || !account.email.trim()}
+                              className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {sendingVerificationCode ? 'Sending...' : 'Verify Email'}
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+                              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Verified
                             </div>
                           )}
                         </div>
-                        {inlineError('email')}
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          {renderFieldLabel(t('auth.password'), 'password')}
-                          <div className="relative">
+                        {showVerificationCode && !emailVerified ? (
+                          <div className="space-y-2">
                             <input
-                              id="password"
-                              type={showPassword ? 'text' : 'password'}
-                              required
-                              value={account.password}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, password: event.target.value }));
-                                clearFieldError('password');
-                              }}
-                              className={fieldClass('password', 'pr-10')}
-                              autoComplete="new-password"
-                              placeholder={t('auth.minCharacters', { length: PASSWORD_MIN_LENGTH })}
+                              type="text"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value)}
+                              placeholder="Enter 6-digit verification code"
+                              className="ykb-field"
                             />
                             <button
                               type="button"
-                              onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-primary transition"
-                              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                              onClick={verifyEmailCode}
+                              disabled={isVerifyingEmail || !verificationCode.trim()}
+                              className="w-full rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              {isVerifyingEmail ? 'Verifying...' : 'Confirm Verification'}
                             </button>
                           </div>
-                          {inlineError('password')}
+                        ) : null}
+                      </div>
+                      {inlineError('email')}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(t('auth.password'), 'password')}
+                        <div className="relative">
+                          <input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            value={account.password}
+                            onChange={(event) => {
+                              setAccount((prev) => ({ ...prev, password: event.target.value }));
+                              clearFieldError('password');
+                            }}
+                            className={fieldClass('password', 'pr-10')}
+                            autoComplete="new-password"
+                            placeholder={t('auth.minCharacters', { length: PASSWORD_MIN_LENGTH })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary transition hover:text-primary"
+                            aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {inlineError('password')}
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(t('auth.confirmPassword'), 'confirm')}
+                        <div className="relative">
+                          <input
+                            id="confirm"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            required
+                            value={account.confirm}
+                            onChange={(event) => {
+                              setAccount((prev) => ({ ...prev, confirm: event.target.value }));
+                              clearFieldError('confirm');
+                            }}
+                            className={fieldClass('confirm', 'pr-10')}
+                            autoComplete="new-password"
+                            placeholder={t('auth.confirmYourPassword')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary transition hover:text-primary"
+                            aria-label={showConfirmPassword ? t('auth.hideConfirmPassword') : t('auth.showConfirmPassword')}
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {inlineError('confirm')}
+                      </div>
+                    </div>
+
+                    {role === 'serviceProvider' ? (
+                      <div className="space-y-4 rounded-lg border border-border bg-surface p-5">
+                        <h3 className="text-lg font-semibold text-gray-800">{t('auth.businessInfo')}</h3>
+
+                        {serviceLoadError ? <div className="ykb-alert ykb-alert-error">{serviceLoadError}</div> : null}
+
+                        <div>
+                          {renderFieldLabel(t('auth.businessName'), 'businessName')}
+                          <input
+                            id="businessName"
+                            required
+                            value={provider.businessName}
+                            onChange={(event) => {
+                              setProvider((prev) => ({ ...prev, businessName: event.target.value }));
+                              clearFieldError('businessName');
+                            }}
+                            className={fieldClass('businessName')}
+                            placeholder="e.g. Kigali Quick Help"
+                          />
+                          {inlineError('businessName')}
                         </div>
 
                         <div>
-                          {renderFieldLabel(t('auth.confirmPassword'), 'confirm')}
-                          <div className="relative">
-                            <input
-                              id="confirm"
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              required
-                              value={account.confirm}
-                              onChange={(event) => {
-                                setAccount((prev) => ({ ...prev, confirm: event.target.value }));
-                                clearFieldError('confirm');
-                              }}
-                              className={fieldClass('confirm', 'pr-10')}
-                              autoComplete="new-password"
-                              placeholder={t('auth.confirmYourPassword')}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-primary transition"
-                              aria-label={showConfirmPassword ? t('auth.hideConfirmPassword') : t('auth.showConfirmPassword')}
-                            >
-                              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                          {inlineError('confirm')}
-                        </div>
-                      </div>
-
-                      {role === 'serviceProvider' && (
-                        <div className="space-y-4 bg-surface rounded-lg p-5 border border-border">
-                          <h3 className="text-lg font-semibold text-gray-800">{t('auth.businessInfo')}</h3>
-
-                          {serviceLoadError && (
-                            <div className="ykb-alert ykb-alert-error">{serviceLoadError}</div>
-                          )}
-
-                          <div>
-                            {renderFieldLabel(t('auth.businessName'), 'businessName')}
-                            <input
-                              id="businessName"
-                              required
-                              value={provider.businessName}
-                              onChange={(event) => {
-                                setProvider((prev) => ({ ...prev, businessName: event.target.value }));
-                                clearFieldError('businessName');
-                              }}
-                              className={fieldClass('businessName')}
-                              placeholder="e.g. Kigali Quick Help"
-                            />
-                            {inlineError('businessName')}
-                          </div>
-
-                          <div>
-                            {renderFieldLabel(t('auth.mainService'), 'service')}
-                            <select
-                              id="service"
-                              required
-                              value={provider.service}
-                              disabled={isLoadingServices || publicServices.length === 0}
-                              onChange={(event) => {
-                                setProvider((prev) => ({ ...prev, service: event.target.value }));
-                                clearFieldError('service');
-                              }}
-                              className={`${fieldClass('service')} disabled:opacity-50`}
-                            >
-                              <option value="">
-                                {isLoadingServices ? t('auth.loadingServices') : t('auth.selectService')}
+                          {renderFieldLabel(t('auth.mainService'), 'service')}
+                          <select
+                            id="service"
+                            required
+                            value={provider.service}
+                            disabled={isLoadingServices || publicServices.length === 0}
+                            onChange={(event) => {
+                              setProvider((prev) => ({ ...prev, service: event.target.value }));
+                              clearFieldError('service');
+                            }}
+                            className={`${fieldClass('service')} disabled:opacity-50`}
+                          >
+                            <option value="">{isLoadingServices ? t('auth.loadingServices') : t('auth.selectService')}</option>
+                            {publicServices.map((service) => (
+                              <option key={service.id} value={service.title}>
+                                {service.title}
                               </option>
-                              {publicServices.map((service) => (
-                                <option key={service.id} value={service.title}>
-                                  {service.title}
-                                </option>
-                              ))}
-                            </select>
-                            {inlineError('service')}
+                            ))}
+                          </select>
+                          {inlineError('service')}
+                        </div>
+
+                        {providerService ? (
+                          <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+                            <p className="font-semibold text-gray-700">{providerService.title}</p>
+                            <p className="mt-1 text-xs text-gray-600">{providerService.description}</p>
                           </div>
+                        ) : null}
 
-                          {providerService && (
-                            <div className="bg-white rounded-lg p-3 text-sm border border-gray-200">
-                              <p className="font-semibold text-gray-700">{providerService.title}</p>
-                              <p className="text-gray-600 text-xs mt-1">{providerService.description}</p>
-                            </div>
-                          )}
-
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
                             {renderFieldLabel(t('auth.location'), 'location')}
                             <input
@@ -1372,256 +1315,262 @@ export function Register() {
                             />
                             {inlineError('moneyRange')}
                           </div>
+                        </div>
 
-                          {showAppLinks && (
-                            <div className="space-y-4 rounded-lg border border-dashed border-gray-300 bg-white p-4">
-                              <div>
-                                <h4 className="font-semibold text-gray-800">{t('auth.appLinks')}</h4>
-                                <p className="text-xs text-gray-500">{t('auth.appLinksDescription')}</p>
-                              </div>
+                        {showAppLinks ? (
+                          <div className="space-y-4 rounded-lg border border-dashed border-gray-300 bg-white p-4">
+                            <div>
+                              <h4 className="font-semibold text-gray-800">{t('auth.appLinks')}</h4>
+                              <p className="text-xs text-gray-500">{t('auth.appLinksDescription')}</p>
+                            </div>
 
-                              <div className="space-y-4">
-                                <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                            <div className="space-y-4">
+                              <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                                <input
+                                  type="checkbox"
+                                  checked={provider.appLinks.webApp}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setProvider((prev) => ({
+                                      ...prev,
+                                      appLinks: {
+                                        ...prev.appLinks,
+                                        webApp: checked,
+                                        webAppUrl: checked ? prev.appLinks.webAppUrl : '',
+                                      },
+                                    }));
+                                    clearFieldError('appLinks');
+                                    clearFieldError('webAppUrl');
+                                  }}
+                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm text-gray-700">
+                                  <span className="block font-semibold">{t('auth.webApp')}</span>
+                                  <span className="text-xs text-gray-500">{t('auth.webAppDescription')}</span>
+                                </span>
+                              </label>
+
+                              {provider.appLinks.webApp ? (
+                                <div>
+                                  {renderFieldLabel(t('auth.webAppLink'), 'webAppUrl')}
                                   <input
-                                    type="checkbox"
-                                    checked={provider.appLinks.webApp}
+                                    id="webAppUrl"
+                                    required
+                                    type="url"
+                                    value={provider.appLinks.webAppUrl}
                                     onChange={(event) => {
-                                      const checked = event.target.checked;
                                       setProvider((prev) => ({
                                         ...prev,
-                                        appLinks: {
-                                          ...prev.appLinks,
-                                          webApp: checked,
-                                          webAppUrl: checked ? prev.appLinks.webAppUrl : '',
-                                        },
+                                        appLinks: { ...prev.appLinks, webAppUrl: event.target.value },
                                       }));
-                                      clearFieldError('appLinks');
                                       clearFieldError('webAppUrl');
                                     }}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    className={fieldClass('webAppUrl')}
+                                    placeholder="https://your-web-app.example"
                                   />
-                                  <span className="text-sm text-gray-700">
-                                    <span className="font-semibold block">{t('auth.webApp')}</span>
-                                    <span className="text-xs text-gray-500">{t('auth.webAppDescription')}</span>
-                                  </span>
-                                </label>
-
-                                {provider.appLinks.webApp && (
-                                  <div>
-                                    {renderFieldLabel(t('auth.webAppLink'), 'webAppUrl')}
-                                    <input
-                                      id="webAppUrl"
-                                      required
-                                      type="url"
-                                      value={provider.appLinks.webAppUrl}
-                                      onChange={(event) => {
-                                        setProvider((prev) => ({
-                                          ...prev,
-                                          appLinks: { ...prev.appLinks, webAppUrl: event.target.value },
-                                        }));
-                                        clearFieldError('webAppUrl');
-                                      }}
-                                      className={fieldClass('webAppUrl')}
-                                      placeholder="https://your-web-app.example"
-                                    />
-                                    {inlineError('webAppUrl')}
-                                  </div>
-                                )}
-
-                                <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={provider.appLinks.mobileApp}
-                                    onChange={(event) => {
-                                      const checked = event.target.checked;
-                                      setProvider((prev) => ({
-                                        ...prev,
-                                        appLinks: {
-                                          ...prev.appLinks,
-                                          mobileApp: checked,
-                                          playStore: checked ? prev.appLinks.playStore : false,
-                                          playStoreUrl: checked ? prev.appLinks.playStoreUrl : '',
-                                          appStore: checked ? prev.appLinks.appStore : false,
-                                          appStoreUrl: checked ? prev.appLinks.appStoreUrl : '',
-                                        },
-                                      }));
-                                      clearFieldError('appLinks');
-                                    }}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                  />
-                                  <span className="text-sm text-gray-700">
-                                    <span className="font-semibold block">{t('auth.mobileApp')}</span>
-                                    <span className="text-xs text-gray-500">{t('auth.mobileAppDescription')}</span>
-                                  </span>
-                                </label>
-
-                                {provider.appLinks.mobileApp && (
-                                  <div className="space-y-4 pl-1">
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                      <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
-                                        <input
-                                          type="checkbox"
-                                          checked={provider.appLinks.playStore}
-                                          onChange={(event) => {
-                                            const checked = event.target.checked;
-                                            setProvider((prev) => ({
-                                              ...prev,
-                                              appLinks: {
-                                                ...prev.appLinks,
-                                                playStore: checked,
-                                                playStoreUrl: checked ? prev.appLinks.playStoreUrl : '',
-                                              },
-                                            }));
-                                            clearFieldError('appLinks');
-                                            clearFieldError('playStoreUrl');
-                                          }}
-                                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                        />
-                                        <span className="text-sm text-gray-700">
-                                          <span className="font-semibold block">{t('auth.playStore')}</span>
-                                          <span className="text-xs text-gray-500">{t('auth.playStoreDescription')}</span>
-                                        </span>
-                                      </label>
-
-                                      <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
-                                        <input
-                                          type="checkbox"
-                                          checked={provider.appLinks.appStore}
-                                          onChange={(event) => {
-                                            const checked = event.target.checked;
-                                            setProvider((prev) => ({
-                                              ...prev,
-                                              appLinks: {
-                                                ...prev.appLinks,
-                                                appStore: checked,
-                                                appStoreUrl: checked ? prev.appLinks.appStoreUrl : '',
-                                              },
-                                            }));
-                                            clearFieldError('appLinks');
-                                            clearFieldError('appStoreUrl');
-                                          }}
-                                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                        />
-                                        <span className="text-sm text-gray-700">
-                                          <span className="font-semibold block">{t('auth.appStore')}</span>
-                                          <span className="text-xs text-gray-500">{t('auth.appStoreDescription')}</span>
-                                        </span>
-                                      </label>
-                                    </div>
-
-                                    {provider.appLinks.playStore && (
-                                      <div>
-                                        {renderFieldLabel(t('auth.playStoreLink'), 'playStoreUrl')}
-                                        <input
-                                          id="playStoreUrl"
-                                          required
-                                          type="url"
-                                          value={provider.appLinks.playStoreUrl}
-                                          onChange={(event) => {
-                                            setProvider((prev) => ({
-                                              ...prev,
-                                              appLinks: { ...prev.appLinks, playStoreUrl: event.target.value },
-                                            }));
-                                            clearFieldError('playStoreUrl');
-                                          }}
-                                          className={fieldClass('playStoreUrl')}
-                                          placeholder="https://play.google.com/store/apps/details?id=..."
-                                        />
-                                        {inlineError('playStoreUrl')}
-                                      </div>
-                                    )}
-
-                                    {provider.appLinks.appStore && (
-                                      <div>
-                                        {renderFieldLabel(t('auth.appStoreLink'), 'appStoreUrl')}
-                                        <input
-                                          id="appStoreUrl"
-                                          required
-                                          type="url"
-                                          value={provider.appLinks.appStoreUrl}
-                                          onChange={(event) => {
-                                            setProvider((prev) => ({
-                                              ...prev,
-                                              appLinks: { ...prev.appLinks, appStoreUrl: event.target.value },
-                                            }));
-                                            clearFieldError('appStoreUrl');
-                                          }}
-                                          className={fieldClass('appStoreUrl')}
-                                          placeholder="https://apps.apple.com/app/..."
-                                        />
-                                        {inlineError('appStoreUrl')}
-                                      </div>
-                                    )}
-
-                                    {inlineError('appLinks')}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="font-semibold text-gray-800">{t('auth.servicesYouProvide')}</h4>
-                                <p className="text-xs text-gray-500">{t('auth.addEachService')}</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={addServiceRow}
-                                className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                              >
-                                {t('auth.addService')}
-                              </button>
-                            </div>
-
-                            <div className="space-y-3">
-                              {provider.services.map((serviceRow, index) => (
-                                <div key={`service-row-${index}`} className="bg-white rounded-lg p-4 border border-gray-200 space-y-3">
-                                  <p className="text-sm font-medium text-gray-600">Service #{index + 1}</p>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <input
-                                      placeholder={t('auth.serviceNamePlaceholder')}
-                                      value={serviceRow.name}
-                                      onChange={(event) => updateServiceRow(index, 'name', event.target.value)}
-                                      className="ykb-field text-sm"
-                                    />
-                                    <input
-                                      placeholder={t('auth.pricePlaceholder')}
-                                      value={serviceRow.price}
-                                      onChange={(event) => updateServiceRow(index, 'price', event.target.value)}
-                                      className="ykb-field text-sm"
-                                    />
-                                  </div>
+                                  {inlineError('webAppUrl')}
                                 </div>
-                              ))}
+                              ) : null}
+
+                              <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                                <input
+                                  type="checkbox"
+                                  checked={provider.appLinks.mobileApp}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setProvider((prev) => ({
+                                      ...prev,
+                                      appLinks: {
+                                        ...prev.appLinks,
+                                        mobileApp: checked,
+                                        playStore: checked ? prev.appLinks.playStore : false,
+                                        playStoreUrl: checked ? prev.appLinks.playStoreUrl : '',
+                                        appStore: checked ? prev.appLinks.appStore : false,
+                                        appStoreUrl: checked ? prev.appLinks.appStoreUrl : '',
+                                      },
+                                    }));
+                                    clearFieldError('appLinks');
+                                  }}
+                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm text-gray-700">
+                                  <span className="block font-semibold">{t('auth.mobileApp')}</span>
+                                  <span className="text-xs text-gray-500">{t('auth.mobileAppDescription')}</span>
+                                </span>
+                              </label>
+
+                              {provider.appLinks.mobileApp ? (
+                                <div className="space-y-4 pl-1">
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={provider.appLinks.playStore}
+                                        onChange={(event) => {
+                                          const checked = event.target.checked;
+                                          setProvider((prev) => ({
+                                            ...prev,
+                                            appLinks: {
+                                              ...prev.appLinks,
+                                              playStore: checked,
+                                              playStoreUrl: checked ? prev.appLinks.playStoreUrl : '',
+                                            },
+                                          }));
+                                          clearFieldError('appLinks');
+                                          clearFieldError('playStoreUrl');
+                                        }}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                      />
+                                      <span className="text-sm text-gray-700">
+                                        <span className="block font-semibold">{t('auth.playStore')}</span>
+                                        <span className="text-xs text-gray-500">{t('auth.playStoreDescription')}</span>
+                                      </span>
+                                    </label>
+
+                                    <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={provider.appLinks.appStore}
+                                        onChange={(event) => {
+                                          const checked = event.target.checked;
+                                          setProvider((prev) => ({
+                                            ...prev,
+                                            appLinks: {
+                                              ...prev.appLinks,
+                                              appStore: checked,
+                                              appStoreUrl: checked ? prev.appLinks.appStoreUrl : '',
+                                            },
+                                          }));
+                                          clearFieldError('appLinks');
+                                          clearFieldError('appStoreUrl');
+                                        }}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                      />
+                                      <span className="text-sm text-gray-700">
+                                        <span className="block font-semibold">{t('auth.appStore')}</span>
+                                        <span className="text-xs text-gray-500">{t('auth.appStoreDescription')}</span>
+                                      </span>
+                                    </label>
+                                  </div>
+
+                                  {provider.appLinks.playStore ? (
+                                    <div>
+                                      {renderFieldLabel(t('auth.playStoreLink'), 'playStoreUrl')}
+                                      <input
+                                        id="playStoreUrl"
+                                        required
+                                        type="url"
+                                        value={provider.appLinks.playStoreUrl}
+                                        onChange={(event) => {
+                                          setProvider((prev) => ({
+                                            ...prev,
+                                            appLinks: { ...prev.appLinks, playStoreUrl: event.target.value },
+                                          }));
+                                          clearFieldError('playStoreUrl');
+                                        }}
+                                        className={fieldClass('playStoreUrl')}
+                                        placeholder="https://play.google.com/store/apps/details?id=..."
+                                      />
+                                      {inlineError('playStoreUrl')}
+                                    </div>
+                                  ) : null}
+
+                                  {provider.appLinks.appStore ? (
+                                    <div>
+                                      {renderFieldLabel(t('auth.appStoreLink'), 'appStoreUrl')}
+                                      <input
+                                        id="appStoreUrl"
+                                        required
+                                        type="url"
+                                        value={provider.appLinks.appStoreUrl}
+                                        onChange={(event) => {
+                                          setProvider((prev) => ({
+                                            ...prev,
+                                            appLinks: { ...prev.appLinks, appStoreUrl: event.target.value },
+                                          }));
+                                          clearFieldError('appStoreUrl');
+                                        }}
+                                        className={fieldClass('appStoreUrl')}
+                                        placeholder="https://apps.apple.com/app/..."
+                                      />
+                                      {inlineError('appStoreUrl')}
+                                    </div>
+                                  ) : null}
+
+                                  {inlineError('appLinks')}
+                                </div>
+                              ) : null}
                             </div>
-
-                            {inlineError('services')}
                           </div>
-                        </div>
-                      )}
+                        ) : null}
 
-                      <div className="flex gap-3 pt-4">
+                        <div>
+                          <div className="mb-3 flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold text-gray-800">{t('auth.servicesYouProvide')}</h4>
+                              <p className="text-xs text-gray-500">{t('auth.addEachService')}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={addServiceRow}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm transition hover:bg-gray-50"
+                            >
+                              {t('auth.addService')}
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            {provider.services.map((serviceRow, index) => (
+                              <div key={`service-row-${index}`} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                                <p className="text-sm font-medium text-gray-600">Service #{index + 1}</p>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <input
+                                    placeholder={t('auth.serviceNamePlaceholder')}
+                                    value={serviceRow.name}
+                                    onChange={(event) => updateServiceRow(index, 'name', event.target.value)}
+                                    className="ykb-field text-sm"
+                                  />
+                                  <input
+                                    placeholder={t('auth.pricePlaceholder')}
+                                    value={serviceRow.price}
+                                    onChange={(event) => updateServiceRow(index, 'price', event.target.value)}
+                                    className="ykb-field text-sm"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {inlineError('services')}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {role === 'serviceProvider' && step === 2 ? (
+                      <div className="flex gap-3 pt-1">
                         <button
                           type="button"
                           onClick={() => {
                             setStep(1);
                             setError(null);
                           }}
-                          className="ykb-button-outline disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="ykb-button-outline disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={isSubmitting}
                         >
                           {t('auth.back')}
                         </button>
-                        <button type="submit" className="flex-1 ykb-button-primary disabled:opacity-60 disabled:cursor-not-allowed" disabled={isSubmitting}>
+                        <button
+                          type="submit"
+                          className="flex-1 ykb-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isSubmitting}
+                        >
                           {isSubmitting ? t('auth.creatingAccount') : t('auth.completeRegistration')}
                         </button>
                       </div>
-                    </div>
-                  )}
-                </form>
-              </div>
+                    ) : null}
+                  </div>
+                )}
+              </form>
             </div>
           )}
         </div>

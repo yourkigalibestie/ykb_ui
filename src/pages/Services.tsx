@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight,  Check, ClipboardList, Copy, ExternalLink, Languages, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ServiceCard } from '../components/ServiceCard';
 import { PriceGrid } from '../components/PriceGrid';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { openWhatsApp } from '../utils/whatsapp';
-import appStoreIcon from '../assets/icons/appstore.png';
-import playStoreIcon from '../assets/icons/playstore.png';
-import webAppIcon from '../assets/icons/webApp.png';
 import { getFriendlyRequestError } from '../utils/friendlyErrors';
 import { createServiceAnchorId } from '../utils/serviceAnchors';
 
@@ -117,20 +113,18 @@ function parseServiceOfferings(value: unknown): ProviderServiceOffering[] {
   const rows: ProviderServiceOffering[] = [];
 
   value.forEach((item) => {
-      if (!item || typeof item !== 'object') return;
-      const row = item as Record<string, unknown>;
-      const name = typeof row.name === 'string' ? row.name.trim() : '';
-      const price = typeof row.price === 'string' ? row.price.trim() : '';
-      const description = typeof row.description === 'string' ? row.description.trim() : undefined;
+    if (!item || typeof item !== 'object') return;
+    const row = item as Record<string, unknown>;
+    const name = typeof row.name === 'string' ? row.name.trim() : '';
+    const price = typeof row.price === 'string' ? row.price.trim() : '';
+    const description = typeof row.description === 'string' ? row.description.trim() : undefined;
 
-      if (!name) return;
-      rows.push({ name, price, description });
-    });
+    if (!name) return;
+    rows.push({ name, price, description });
+  });
 
   return rows;
 }
-
-
 
 export function Services() {
   const { t, i18n } = useTranslation();
@@ -143,6 +137,31 @@ export function Services() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const existingScript = document.querySelector('script[src="https://www.googletagmanager.com/gtag/js?id=G-5T7DTFNYP6"]');
+    if (existingScript) return;
+
+    const externalScript = document.createElement('script');
+    externalScript.async = true;
+    externalScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-5T7DTFNYP6';
+    document.head.appendChild(externalScript);
+
+    const inlineScript = document.createElement('script');
+    inlineScript.text = `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-5T7DTFNYP6');`;
+    document.head.appendChild(inlineScript);
+
+    return () => {
+      document.head.removeChild(externalScript);
+      document.head.removeChild(inlineScript);
+    };
+  }, []);
+
 
   const activeLanguage = useMemo<TranslationLanguage>(
     () => (i18n.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en'),
@@ -181,91 +200,90 @@ export function Services() {
   };
 
   const load = useCallback(async () => {
-      setStatus('loading');
-      setError(null);
+    setStatus('loading');
+    setError(null);
 
-      try {
-        const [categoriesResult, starterKitResult, languagesResult, providersResult] = await Promise.allSettled([
-          fetch(`${API_BASE}/starter-guide-categories?isStarterKit=false`),
-          fetch(`${API_BASE}/starter-guide-categories?isStarterKit=true`),
-          fetch(`${API_BASE}/languages`),
-          fetch(`${API_BASE}/providers`),
-        ]);
+    try {
+      const [categoriesResult, starterKitResult, languagesResult, providersResult] = await Promise.allSettled([
+        fetch(`${API_BASE}/starter-guide-categories?isStarterKit=false`),
+        fetch(`${API_BASE}/starter-guide-categories?isStarterKit=true`),
+        fetch(`${API_BASE}/languages`),
+        fetch(`${API_BASE}/providers`),
+      ]);
 
-        if (categoriesResult.status !== 'fulfilled') {
-          throw new Error(
-            getFriendlyRequestError({
-              error: categoriesResult.reason,
-              action: 'load services',
-            })
-          );
-        }
+      if (categoriesResult.status !== 'fulfilled') {
+        throw new Error(
+          getFriendlyRequestError({
+            error: categoriesResult.reason,
+            action: 'load services',
+          })
+        );
+      }
 
-        const categoriesResponse = categoriesResult.value;
-        if (!categoriesResponse.ok) {
-          const status = await readApiErrorStatus(categoriesResponse);
-          throw new Error(
-            getFriendlyRequestError({
-              status,
-              action: 'load services',
-            })
-          );
-        }
+      const categoriesResponse = categoriesResult.value;
+      if (!categoriesResponse.ok) {
+        const status = await readApiErrorStatus(categoriesResponse);
+        throw new Error(
+          getFriendlyRequestError({
+            status,
+            action: 'load services',
+          })
+        );
+      }
 
-        const categoriesJson = (await categoriesResponse.json()) as
+      const categoriesJson = (await categoriesResponse.json()) as
+        | StarterGuideCategory[]
+        | { categories?: StarterGuideCategory[] };
+      const categoriesList = Array.isArray(categoriesJson)
+        ? categoriesJson
+        : Array.isArray(categoriesJson.categories)
+          ? categoriesJson.categories
+          : [];
+
+      const servicesList = categoriesList.filter((category) => category.isStarterKit === false);
+
+      let starterKitList: StarterGuideCategory[] = [];
+      if (starterKitResult && starterKitResult.status === 'fulfilled' && starterKitResult.value.ok) {
+        const starterKitJson = (await starterKitResult.value.json()) as
           | StarterGuideCategory[]
           | { categories?: StarterGuideCategory[] };
-        const categoriesList = Array.isArray(categoriesJson)
-          ? categoriesJson
-          : Array.isArray(categoriesJson.categories)
-            ? categoriesJson.categories
+        const starterKitCategories = Array.isArray(starterKitJson)
+          ? starterKitJson
+          : Array.isArray(starterKitJson.categories)
+            ? starterKitJson.categories
             : [];
-
-        // Show only non-starter-kit services
-        const servicesList = categoriesList.filter((category) => category.isStarterKit === false);
-
-        let starterKitList: StarterGuideCategory[] = [];
-        if (starterKitResult && starterKitResult.status === 'fulfilled' && starterKitResult.value.ok) {
-          const starterKitJson = (await starterKitResult.value.json()) as
-            | StarterGuideCategory[]
-            | { categories?: StarterGuideCategory[] };
-          const starterKitCategories = Array.isArray(starterKitJson)
-            ? starterKitJson
-            : Array.isArray(starterKitJson.categories)
-              ? starterKitJson.categories
-              : [];
-          starterKitList = starterKitCategories.filter((category) => category.isStarterKit === true);
-        }
-
-        let languagesList: Language[] = [];
-        if (languagesResult.status === 'fulfilled' && languagesResult.value.ok) {
-          const languagesJson = (await languagesResult.value.json()) as { languages?: Language[] };
-          languagesList = Array.isArray(languagesJson.languages) ? languagesJson.languages : [];
-        }
-
-        let providersList: ProviderSummary[] = [];
-        if (providersResult.status === 'fulfilled' && providersResult.value.ok) {
-          const providersJson = (await providersResult.value.json()) as { providers?: ProviderSummary[] };
-          providersList = Array.isArray(providersJson.providers) ? providersJson.providers : [];
-        }
-
-        setServices(servicesList);
-        setStarterKitServices(starterKitList);
-        setLanguages(languagesList);
-        setProviders(providersList);
-        setStatus('ready');
-      } catch (err) {
-        if (err instanceof Error && err.message.trim().length > 0) {
-          setError(err.message);
-        } else {
-          setError(getFriendlyRequestError({ error: err, action: 'load services' }));
-        }
-        setServices([]);
-        setLanguages([]);
-        setProviders([]);
-        setStatus('error');
+        starterKitList = starterKitCategories.filter((category) => category.isStarterKit === true);
       }
-    }, []);
+
+      let languagesList: Language[] = [];
+      if (languagesResult.status === 'fulfilled' && languagesResult.value.ok) {
+        const languagesJson = (await languagesResult.value.json()) as { languages?: Language[] };
+        languagesList = Array.isArray(languagesJson.languages) ? languagesJson.languages : [];
+      }
+
+      let providersList: ProviderSummary[] = [];
+      if (providersResult.status === 'fulfilled' && providersResult.value.ok) {
+        const providersJson = (await providersResult.value.json()) as { providers?: ProviderSummary[] };
+        providersList = Array.isArray(providersJson.providers) ? providersJson.providers : [];
+      }
+
+      setServices(servicesList);
+      setStarterKitServices(starterKitList);
+      setLanguages(languagesList);
+      setProviders(providersList);
+      setStatus('ready');
+    } catch (err) {
+      if (err instanceof Error && err.message.trim().length > 0) {
+        setError(err.message);
+      } else {
+        setError(getFriendlyRequestError({ error: err, action: 'load services' }));
+      }
+      setServices([]);
+      setLanguages([]);
+      setProviders([]);
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -341,26 +359,52 @@ export function Services() {
     return rows;
   }, [providers]);
 
+  // Show loading state with spinner while fetching
+  if (status === 'loading' || status === 'idle') {
+    return (
+      <main className="pt-16 bg-white text-gray-900">
+        <section className="min-h-[60vh] flex items-center justify-center bg-[#fdfbf7]">
+          <LoadingSpinner size="lg" text="Loading services..." centered />
+        </section>
+      </main>
+    );
+  }
+
+  // Show error state if something went wrong
+  if (status === 'error') {
+    return (
+      <main className="pt-16 bg-white text-gray-900">
+        <section className="min-h-[60vh] flex flex-col items-center justify-center bg-[#fdfbf7] px-4">
+          <div className="max-w-md text-center">
+            <div className="w-16 h-16 mx-auto mb-4 border border-red-200 bg-red-50 flex items-center justify-center">
+              <span className="text-2xl font-bold text-red-500">!</span>
+            </div>
+            <h2 className="text-xl font-serif font-bold text-primary mb-2">Unable to load services</h2>
+            <p className="text-sm text-textSecondary mb-6">{error ?? 'We could not load services right now. Please try again.'}</p>
+            <button
+              onClick={() => void load()}
+              className="border border-secondary/25 bg-secondary px-5 py-2.5 font-semibold text-primary transition-all hover:shadow-lg text-sm"
+            >
+              Try again
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="pt-16 bg-white text-gray-900">
-      {status === 'loading' || status === 'idle' ? (
-        <section className="ykb-section bg-[#fdfbf7] min-h-[60vh] flex items-center justify-center">
-          <LoadingSpinner size="lg" text="Loading services…" centered />
-        </section>
-      ) : null}
-
-      <section className="ykb-section bg-[#fdfbf7]">
-        <div className="ykb-container">
+      <section className="bg-[#fdfbf7] py-8">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="mb-6">
-            <h1 className="text-3xl md:text-4xl font-serif text-start font-bold text-primary mb-2">{t('services.pageTitle')}</h1>
+            <h1 className="text-2xl md:text-3xl font-serif text-start font-bold text-primary mb-2">{t('services.pageTitle')}</h1>
             <p className="text-sm text-textSecondary max-w-3xl">
               {t('services.pageDescription')}
             </p>
           </div>
 
-
-
-          <div className="sticky top-16 z-20 mb-8 border-b border-secondary/20 bg-white/95 py-3 backdrop-blur">
+          <div className="sticky top-16 z-20 mb-6 border-b border-secondary/20 bg-white/95 py-2 backdrop-blur">
             <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-primary sm:text-sm">
               {sectionLinks.map((section, index) => (
                 <span key={section.id} className="inline-flex items-center gap-2">
@@ -384,31 +428,21 @@ export function Services() {
             </div>
           </div>
 
+          {/* ALL SERVICES SECTION */}
           <section
             id="all-services"
-            className="scroll-mt-28 mb-12 rounded-3xl border border-secondary/25 border-l-8 border-l-secondary bg-linear-to-br from-secondary/10 via-white to-white p-4 sm:p-6 lg:p-8 shadow-sm"
+            className="scroll-mt-28 mb-8 rounded-xl border border-secondary/25 border-l-8 border-l-secondary bg-gradient-to-br from-secondary/10 via-white to-white p-4 sm:p-5 shadow-sm"
           >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold text-primary">{t('services.ourCoreServices')}</h2>
-  
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-primary">{t('services.ourCoreServices')}</h2>
             </div>
             <p className="mb-4 text-sm text-textSecondary">
               {t('services.coreServicesDescription')}
             </p>
 
-            {status === 'error' ? (
-              <div className="ykb-card">
-                <div className="ykb-alert ykb-alert-error">{error ?? 'We could not load services right now. Please try again.'}</div>
-                <button
-                  onClick={() => void load()}
-                  className="mt-3 ykb-button-outline"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : topServices.length === 0 ? (
-              <div className="ykb-card">
-                <div className="ykb-alert ykb-alert-info">No services available yet.</div>
+            {topServices.length === 0 ? (
+              <div className="border border-border bg-white p-4 text-sm text-textSecondary">
+                No services available yet.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -457,30 +491,29 @@ export function Services() {
             )}
           </section>
 
-
-
+          {/* TRANSLATOR SECTION */}
           <section
             id="translator"
-            className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-primary bg-linear-to-br from-primary/5 via-surface/60 to-white p-4 sm:p-6 lg:p-8 shadow-sm"
+            className="scroll-mt-28 mb-8 rounded-xl border border-border border-l-8 border-l-primary bg-gradient-to-br from-primary/5 via-surface/60 to-white p-4 sm:p-5 shadow-sm"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <Languages className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold text-primary">{t('services.translatorBooking')}</h2>
+            <div className="mb-4">
+              <div className="h-px w-12 bg-primary mb-3"></div>
+              <h2 className="text-xl font-bold text-primary">{t('services.translatorBooking')}</h2>
             </div>
             <p className="mb-4 text-sm text-textSecondary">
               {t('services.translatorDescription')}
             </p>
 
             {languages.length === 0 ? (
-              <div className="ykb-card">
-                <div className="ykb-alert ykb-alert-info">No translator languages are available yet.</div>
+              <div className="border border-border bg-white p-4 text-sm text-textSecondary">
+                No translator languages are available yet.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {languages.map((language) => {
                   return (
-                    <article key={language.id} className="ykb-card">
-                      <h3 className="text-lg font-semibold text-primary">{language.title}</h3>
+                    <article key={language.id} className="border border-secondary/25 bg-white p-5 transition-all hover:shadow-md">
+                      <h3 className="text-base font-semibold text-primary">{language.title}</h3>
                       <p className="mt-2 text-xs text-textSecondary">Available pricing options</p>
                       <div className="mt-3">
                         <PriceGrid prices={language.prices} />
@@ -495,10 +528,9 @@ export function Services() {
                             ].join('\n')
                           )
                         }
-                        className="mt-4 ykb-button-primary w-full"
+                        className="mt-4 w-full border border-secondary bg-secondary px-4 py-2.5 font-semibold text-primary transition-all hover:shadow-lg text-sm"
                       >
                         <span>{t('services.bookTranslator')}</span>
-                        <ArrowRight className="h-4 w-4" />
                       </button>
                     </article>
                   );
@@ -507,111 +539,107 @@ export function Services() {
             )}
           </section>
 
+          {/* STARTER KIT SERVICES */}
+          {starterKitServices.length > 0 && (
+            <section
+              id="starter-kit-services"
+              className="scroll-mt-28 mb-8 rounded-xl border border-border border-l-8 border-l-secondary bg-gradient-to-br from-secondary/10 via-white to-white p-4 sm:p-5 shadow-sm"
+            >
+              <div className="mb-4">
+                <div className="h-px w-12 bg-secondary mb-3"></div>
+                <h2 className="text-xl font-bold text-primary">Starter Kit Services</h2>
+              </div>
+              <p className="mb-4 text-sm text-textSecondary">
+                Helpful starter services for settling in quickly.
+              </p>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {starterKitServices.slice(0, 4).map((service, index) => {
+                  const { category, description } = getDisplayFields(service);
+                  const { category: englishTitle, description: englishDescription } = getEnglishFields(service);
+                  const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
 
-                    {starterKitServices.length > 0 ? (
-                      <section
-                        id="starter-kit-services"
-                        className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-secondary bg-linear-to-br from-secondary/10 via-white to-white p-4 sm:p-6 lg:p-8 shadow-sm"
-                      >
-                        <div className="mb-4 flex items-center gap-3">
-                          <Languages className="h-6 w-6 text-primary" />
-                          <h2 className="text-2xl font-bold text-primary">Starter Kit Services</h2>
-                        </div>
-                        <p className="mb-4 text-sm text-textSecondary">
-                          Helpful starter services for settling in quickly.
-                        </p>
+                  const canBrowseProviders = service.allowProviderRegistration === true;
 
-                        {/* Show only a single row of up to 4 starter-kit services */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                          {starterKitServices.slice(0, 4).map((service, index) => {
-                            const { category, description } = getDisplayFields(service);
-                            const { category: englishTitle, description: englishDescription } = getEnglishFields(service);
-                            const anchorId = createServiceAnchorId(englishTitle, 'starter-kit');
+                  const ctaText = PHASE1_ENABLED
+                    ? t('services.requestService')
+                    : canBrowseProviders
+                      ? t('services.browseProviders')
+                      : t('services.requestService');
 
-                            const canBrowseProviders = service.allowProviderRegistration === true;
+                  const onCta = PHASE1_ENABLED
+                    ? () => navigate(`/request?service=${encodeURIComponent(englishTitle)}`)
+                    : canBrowseProviders
+                      ? () => navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`)
+                      : () =>
+                          openWhatsApp(
+                            [
+                              'Hello Your Kigali Bestie, I would like to request this service:',
+                              `Service: ${englishTitle}`,
+                              englishDescription ? `Description: ${englishDescription}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join('\n')
+                          );
 
-                            const ctaText = PHASE1_ENABLED
-                              ? t('services.requestService')
-                              : canBrowseProviders
-                                ? t('services.browseProviders')
-                                : t('services.requestService');
+                  return (
+                    <div key={service.id} id={anchorId} className="scroll-mt-28">
+                      <ServiceCard
+                        title={category}
+                        description={description}
+                        imageUrl={service.imageUrl}
+                        count={index + 1}
+                        ctaText={ctaText}
+                        onCta={onCta}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
 
-                            const onCta = PHASE1_ENABLED
-                              ? () => navigate(`/request?service=${encodeURIComponent(englishTitle)}`)
-                              : canBrowseProviders
-                                ? () => navigate(`/service-providers?service=${encodeURIComponent(englishTitle)}`)
-                                : () =>
-                                    openWhatsApp(
-                                      [
-                                        'Hello Your Kigali Bestie, I would like to request this service:',
-                                        `Service: ${englishTitle}`,
-                                        englishDescription ? `Description: ${englishDescription}` : null,
-                                      ]
-                                        .filter(Boolean)
-                                        .join('\n')
-                                    );
+              <div className="mt-5 text-center">
+                <button
+                  onClick={() => navigate('/guide')}
+                  className="inline-flex items-center gap-2 border border-secondary/25 bg-white px-5 py-2.5 font-semibold text-primary transition-all hover:bg-secondary hover:text-white text-sm"
+                >
+                  <span>{t('services.learnMore')}</span>
+                  <span>({starterKitServices.length})</span>
+                </button>
+              </div>
+            </section>
+          )}
 
-                            return (
-                              <div key={service.id} id={anchorId} className="scroll-mt-28">
-                                <ServiceCard
-                                  title={category}
-                                  description={description}
-                                  imageUrl={service.imageUrl}
-                                  count={index + 1}
-                                  ctaText={ctaText}
-                                  onCta={onCta}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="mt-6 text-center">
-                          <button
-                            onClick={() => navigate('/guide')}
-                            className="ykb-button-outline inline-flex items-center gap-2"
-                          >
-                            <span>{t('services.learnMore')}</span>
-                            <span>({starterKitServices.length})</span>
-                          </button>
-                        </div>
-                      </section>
-                    ) : null}
-
+          {/* APPS SECTION */}
           <section
             id="apps"
-            className="scroll-mt-28 mb-12 rounded-3xl border border-border border-l-8 border-l-accent bg-linear-to-br from-surface via-white to-secondary/5 p-4 sm:p-6 lg:p-8 shadow-sm"
+            className="scroll-mt-28 mb-8 rounded-xl border border-border border-l-8 border-l-accent bg-gradient-to-br from-surface via-white to-secondary/5 p-4 sm:p-5 shadow-sm"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <Smartphone className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold text-primary">{t('services.localProviderApps')}</h2>
+            <div className="mb-4">
+              <div className="h-px w-12 bg-accent mb-3"></div>
+              <h2 className="text-xl font-bold text-primary">{t('services.localProviderApps')}</h2>
             </div>
             <p className="mb-4 text-sm text-textSecondary">
               {t('services.appsDescription')}
             </p>
 
             {providerApps.length === 0 ? (
-              <div className="ykb-card">
-                <div className="ykb-alert ykb-alert-info">
-                  No provider app links are published yet. Providers can add Web app, Play Store, and App Store links during registration.
-                </div>
+              <div className="border border-border bg-white p-4 text-sm text-textSecondary">
+                No provider app links are published yet. Providers can add Web app, Play Store, and App Store links during registration.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {providerApps.map((app) => (
-                  <article key={app.id} className="ykb-card">
+                  <article key={app.id} className="border border-secondary/25 bg-white p-5 transition-all hover:shadow-md">
                     <h3 className="text-base font-semibold text-primary">{app.appName}</h3>
                     <p className="mt-1 text-xs text-textSecondary">Provider: {app.providerName}</p>
 
                     <div className="mt-4 space-y-3">
-                      {app.webAppUrl ? (
-                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
-                          <div className="flex items-center gap-2 mb-2">
-                            <img src={webAppIcon} alt="Web App" className="h-5 w-5" />
-                            <span className="text-sm font-semibold text-primary">{t('services.webApp')}</span>
+                      {app.webAppUrl && (
+                        <div className="border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="mb-2">
+                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Web App</span>
                           </div>
-                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                          <div className="flex items-center gap-2 bg-surface px-2 py-1">
                             <a
                               href={app.webAppUrl}
                               target="_blank"
@@ -624,36 +652,29 @@ export function Services() {
                             <div className="flex gap-1">
                               <button
                                 onClick={() => handleCopyLink(app.webAppUrl!)}
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Copy link"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                {copiedLink === app.webAppUrl ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
-                                )}
+                                {copiedLink === app.webAppUrl ? 'Copied' : 'Copy'}
                               </button>
                               <a
                                 href={app.webAppUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Open in new tab"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                Open
                               </a>
                             </div>
                           </div>
                         </div>
-                      ) : null}
+                      )}
 
-                      {app.playStoreUrl ? (
-                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
-                          <div className="flex items-center gap-2 mb-2">
-                            <img src={playStoreIcon} alt="Play Store" className="h-5 w-5" />
-                            <span className="text-sm font-semibold text-primary">{t('services.playStore')}</span>
+                      {app.playStoreUrl && (
+                        <div className="border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="mb-2">
+                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Play Store</span>
                           </div>
-                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                          <div className="flex items-center gap-2 bg-surface px-2 py-1">
                             <a
                               href={app.playStoreUrl}
                               target="_blank"
@@ -666,36 +687,29 @@ export function Services() {
                             <div className="flex gap-1">
                               <button
                                 onClick={() => handleCopyLink(app.playStoreUrl!)}
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Copy link"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                {copiedLink === app.playStoreUrl ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
-                                )}
+                                {copiedLink === app.playStoreUrl ? 'Copied' : 'Copy'}
                               </button>
                               <a
                                 href={app.playStoreUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Open in new tab"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                Open
                               </a>
                             </div>
                           </div>
                         </div>
-                      ) : null}
+                      )}
 
-                      {app.appStoreUrl ? (
-                        <div className="rounded-md border border-border p-3 hover:bg-secondary/5 transition-colors">
-                          <div className="flex items-center gap-2 mb-2">
-                            <img src={appStoreIcon} alt="App Store" className="h-5 w-5" />
-                            <span className="text-sm font-semibold text-primary">{t('services.appStore')}</span>
+                      {app.appStoreUrl && (
+                        <div className="border border-border p-3 hover:bg-secondary/5 transition-colors">
+                          <div className="mb-2">
+                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">App Store</span>
                           </div>
-                          <div className="flex items-center gap-2 bg-surface rounded px-2 py-1">
+                          <div className="flex items-center gap-2 bg-surface px-2 py-1">
                             <a
                               href={app.appStoreUrl}
                               target="_blank"
@@ -708,28 +722,22 @@ export function Services() {
                             <div className="flex gap-1">
                               <button
                                 onClick={() => handleCopyLink(app.appStoreUrl!)}
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Copy link"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                {copiedLink === app.appStoreUrl ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Copy className="h-4 w-4 text-textSecondary hover:text-primary" />
-                                )}
+                                {copiedLink === app.appStoreUrl ? 'Copied' : 'Copy'}
                               </button>
                               <a
                                 href={app.appStoreUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1 hover:bg-secondary/20 rounded transition-colors"
-                                title="Open in new tab"
+                                className="px-2 py-1 text-xs hover:bg-secondary/20 rounded transition-colors"
                               >
-                                <ExternalLink className="h-4 w-4 text-textSecondary hover:text-primary" />
+                                Open
                               </a>
                             </div>
                           </div>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </article>
                 ))}
@@ -737,9 +745,11 @@ export function Services() {
             )}
           </section>
 
-          <div className="mb-8 grid gap-4 rounded-3xl border border-secondary/25 bg-white p-5 shadow-sm sm:grid-cols-[1.6fr_1fr]">
+          {/* WHAT WE DO + HELP SECTION */}
+          <div className="mb-8 grid gap-4 rounded-xl border border-secondary/25 bg-white p-5 shadow-sm sm:grid-cols-[1.6fr_1fr]">
             <div>
-              <h2 className="text-xl font-semibold text-primary mb-2">{t('services.whatWeDo')}</h2>
+              <div className="h-px w-8 bg-secondary mb-3"></div>
+              <h2 className="text-lg font-semibold text-primary mb-2">{t('services.whatWeDo')}</h2>
               <p className="mb-4 text-sm text-textSecondary">
                 {t('services.whatWeDoDescription')}
               </p>
@@ -749,28 +759,26 @@ export function Services() {
                 <li>• {t('services.hardToFind')}</li>
               </ul>
             </div>
-            <div className="rounded-3xl bg-secondary/5 p-5">
-              <h3 className="text-lg font-semibold text-primary mb-3">{t('services.needHelpNow')}</h3>
+            <div className="rounded-xl bg-secondary/5 p-5">
+              <div className="h-px w-8 bg-secondary mb-3"></div>
+              <h3 className="text-base font-semibold text-primary mb-2">{t('services.needHelpNow')}</h3>
               <p className="mb-4 text-sm text-textSecondary">
                 {t('services.needHelpDescription')}
               </p>
               <button
                 onClick={() => openWhatsApp('Hello Your Kigali Bestie, I need help booking a custom service or provider.')}
-                className="ykb-button-primary w-full mb-3"
+                className="w-full border border-secondary bg-secondary px-4 py-2.5 font-semibold text-primary transition-all hover:shadow-lg text-sm mb-3"
               >
                 <span>{t('services.helpMeBook')}</span>
-                <ArrowRight className="h-4 w-4" />
               </button>
               <button
                 onClick={() => navigate('/request')}
-                className="ykb-button-outline w-full"
+                className="w-full border border-secondary/25 bg-white px-4 py-2.5 font-semibold text-primary transition-all hover:bg-secondary hover:text-white text-sm"
               >
-                <ClipboardList className="h-4 w-4" />
                 <span>Request Service</span>
               </button>
             </div>
           </div>
-
         </div>
       </section>
     </main>

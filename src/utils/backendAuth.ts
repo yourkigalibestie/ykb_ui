@@ -97,6 +97,34 @@ export function logoutBackend(): void {
   setBackendSession(null);
 }
 
+function handleUnauthorizedResponse(res: Response): void {
+  if (res.status !== 401) return;
+
+  const session = getBackendSession();
+  if (!session?.accessToken) return;
+
+  logoutBackend();
+  if (typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/login') {
+      window.location.replace('/login?reason=session-expired');
+    }
+  }
+}
+
+function installBackendAuthFetchInterceptor(): void {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const response = await originalFetch(input, init);
+    handleUnauthorizedResponse(response);
+    return response;
+  };
+}
+
+installBackendAuthFetchInterceptor();
+
 export function getBackendAccessToken(): string | null {
   return getBackendSession()?.accessToken ?? null;
 }
