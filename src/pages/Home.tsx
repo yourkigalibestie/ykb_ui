@@ -7,25 +7,26 @@ import { useEffect, useState, useRef } from 'react';
 
 // Import all images
 import appartmentImage from '../assets/images/appartment visting.webp';
-import foodImage from '../assets/images/food.jpg';
 import movingImage from '../assets/images/moving help.jpg';
-import clinicImage from '../assets/images/clinic image.jpg';
-import foodAppImage from '../assets/images/food delivering app.webp';
-import cleaningImage from '../assets/images/cleaning.jpg';
-import receptionistImage from '../assets/images/receptionist calling.webp';
+import PersonalAssistantImage from '../assets/images/personalassistant.jpeg';
 import errandRunningImage from '../assets/images/errandRunning.png';
 import constructionSupervision from '../assets/images/constractionsupervision.png';
-import eventplanningImage from '../assets/images/eventplanning.png';
-import airportpickupImage from '../assets/images/airportpickup.png';
+import eventplanningImage from '../assets/images/eventplanning.jpeg';
+import airportpickupImage from '../assets/images/airportpickup.jpeg';
+import HouseSittingImage from '../assets/images/housesitting.jpeg';
+
+
+import bg_image1 from "../assets/bg_images/bg_1.jpeg"
+import bg_image2 from "../assets/bg_images/bg_2.jpeg"
+import bg_image3 from "../assets/bg_images/bg_3.jpeg"
+import bg_image4 from "../assets/bg_images/bg_4.jpeg"
+
 
 const backgroundImages = [
-  appartmentImage,
-  foodImage,
-  movingImage,
-  clinicImage,
-  foodAppImage,
-  cleaningImage,
-  receptionistImage,
+  bg_image1,
+  bg_image2,
+  bg_image3,
+  bg_image4,
 ];
 
 type TranslationLanguage = 'en' | 'fr';
@@ -120,7 +121,7 @@ gtag('config', 'G-5T7DTFNYP6');`;
     });
 
     return () => observer.disconnect();
-  }, [featuredServices.length]);
+  }, [featuredServices.length, activeLanguage]);
 
   useEffect(() => {
     let mounted = true;
@@ -217,16 +218,15 @@ function GuideCard({ title, items }: GuideCardProps) {
 
 
   const personalServices = [
-    { title: t('home.personalServices.0.title'), description: t('home.personalServices.0.description'), image: receptionistImage, size: 'large' },
+    { title: t('home.personalServices.0.title'), description: t('home.personalServices.0.description'), image: PersonalAssistantImage, size: 'large' },
     { title: t('home.personalServices.1.title'), description: t('home.personalServices.1.description'), image: constructionSupervision, size: 'small' },
-    { title: t('home.personalServices.2.title'), description: t('home.personalServices.2.description'), image: cleaningImage, size: 'medium' },
+    { title: t('home.personalServices.2.title'), description: t('home.personalServices.2.description'), image: HouseSittingImage, size: 'medium' },
     { title: t('home.personalServices.3.title'), description: t('home.personalServices.3.description'), image: errandRunningImage, size: 'small' },
-    { title: t('home.personalServices.4.title'), description: t('home.personalServices.4.description'), image: foodAppImage, size: 'medium' },
-    { title: t('home.personalServices.5.title'), description: t('home.personalServices.5.description'), image: eventplanningImage, size: 'large' },
-    { title: t('home.personalServices.6.title'), description: t('home.personalServices.6.description'), image: airportpickupImage, size: 'small' },
-    { title: t('home.personalServices.7.title'), description: t('home.personalServices.7.description'), image: movingImage, size: 'small' },
-    { title: t('home.personalServices.8.title'), description: t('home.personalServices.8.description'), image: appartmentImage, size: 'medium' },
-    { title: t('home.personalServices.9.title'), description: t('home.personalServices.9.description'), image: movingImage, size: 'small' },
+    { title: t('home.personalServices.4.title'), description: t('home.personalServices.4.description'), image: eventplanningImage, size: 'large' },
+    { title: t('home.personalServices.5.title'), description: t('home.personalServices.5.description'), image: airportpickupImage, size: 'small' },
+    { title: t('home.personalServices.6.title'), description: t('home.personalServices.6.description'), image: movingImage, size: 'small' },
+    { title: t('home.personalServices.7.title'), description: t('home.personalServices.7.description'), image: appartmentImage, size: 'medium' },
+    { title: t('home.personalServices.8.title'), description: t('home.personalServices.8.description'), image: movingImage, size: 'small' },
   ];
 
   const whyChooseUs = [
@@ -298,9 +298,7 @@ function GuideCard({ title, items }: GuideCardProps) {
                 {t('home.title')}
               </span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm text-white md:text-base">
-              {t('home.description')}
-            </p>
+      
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <button onClick={handleCTA} className="group inline-flex items-center justify-center gap-2 border border-secondary/25 bg-secondary px-5 py-2.5 text-sm font-semibold text-primary transition-all hover:shadow-lg hover:scale-105">
                 <span>{t('home.getStarted')}</span>
@@ -318,7 +316,7 @@ function GuideCard({ title, items }: GuideCardProps) {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 gap-px border border-secondary/25 bg-white shadow-sm md:grid-cols-4">
             {stats.map((stat, idx) => (
-              <div key={stat.label} className={`p-4 text-center ${idx < stats.length - 1 ? 'border-r border-border' : ''}`}>
+              <div key={idx} className={`p-4 text-center ${idx < stats.length - 1 ? 'border-r border-border' : ''}`}>
                 <div className="text-xl font-bold text-primary">{stat.value}</div>
                 <div className="mt-1 text-xs text-textSecondary">{stat.label}</div>
               </div>
@@ -337,7 +335,7 @@ function GuideCard({ title, items }: GuideCardProps) {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {whyChooseUs.map((item, idx) => (
-              <div key={item.title} className={`animate-on-scroll border border-secondary/25 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 ${isVisible[`why-${idx}`] ? 'visible' : ''}`} id={`why-${idx}`}>
+              <div key={idx} className={`animate-on-scroll border border-secondary/25 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 ${isVisible[`why-${idx}`] ? 'visible' : ''}`} id={`why-${idx}`}>
                 <div className="mb-3 h-px w-12 bg-secondary"></div>
                 <h3 className="mb-2 text-base font-semibold text-primary">{item.title}</h3>
                 <p className="text-xs text-textSecondary leading-relaxed">{item.description}</p>
@@ -563,7 +561,7 @@ function GuideCard({ title, items }: GuideCardProps) {
                     <div className="w-6 h-6 bg-gradient-to-br from-secondary to-primary flex items-center justify-center">
                       <span className="text-[10px] font-bold text-white">04</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider">{t('home.travel')}</span>
+                    <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider">{t('home.premiumService')}</span>
                   </div>
                   <h3 className="text-base font-serif font-bold text-primary mb-1">{personalServices[4].title}</h3>
                   <p className="text-xs text-textSecondary leading-relaxed">{personalServices[4].description}</p>
@@ -600,7 +598,7 @@ function GuideCard({ title, items }: GuideCardProps) {
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 bg-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-sm font-bold text-secondary">07</span>
+                        <span className="text-sm font-bold text-secondary">05</span>
                       </div>
                       <div>
                         <h4 className="font-semibold text-primary text-sm mb-0.5">{personalServices[7].title}</h4>
@@ -609,42 +607,26 @@ function GuideCard({ title, items }: GuideCardProps) {
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-sm font-bold text-primary">08</span>
+                        <span className="text-sm font-bold text-primary">06</span>
                       </div>
                       <div>
                         <h4 className="font-semibold text-primary text-sm mb-0.5">{personalServices[8].title}</h4>
                         <p className="text-xs text-textSecondary leading-relaxed">{personalServices[8].description}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-sm font-bold text-secondary">09</span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-primary text-sm mb-0.5">{personalServices[9].title}</h4>
-                        <p className="text-xs text-textSecondary leading-relaxed">{personalServices[9].description}</p>
-                      </div>
-                    </div>
                   </div>
                 </div>
                 <div className="relative">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-3">
-                      <div className="border border-secondary/25 shadow-lg overflow-hidden">
-                        <div className="h-28 overflow-hidden">
-                          <img src={personalServices[7].image} alt={personalServices[7].title} className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                      <div className="border border-secondary/25 shadow-lg overflow-hidden">
-                        <div className="h-28 overflow-hidden">
-                          <img src={personalServices[8].image} alt={personalServices[8].title} className="w-full h-full object-cover" />
-                        </div>
+                    <div className="border border-secondary/25 shadow-lg overflow-hidden">
+                      <div className="h-56 overflow-hidden">
+                        <img src={personalServices[2].image} alt={personalServices[7].title} className="w-full h-full object-cover" />
                       </div>
                     </div>
                     <div className="mt-6">
                       <div className="border border-secondary/25 shadow-lg overflow-hidden">
                         <div className="h-56 overflow-hidden">
-                          <img src={personalServices[9].image} alt={personalServices[9].title} className="w-full h-full object-cover" />
+                          <img src={personalServices[8].image} alt={personalServices[8].title} className="w-full h-full object-cover" />
                         </div>
                       </div>
                     </div>
@@ -827,8 +809,8 @@ function GuideCard({ title, items }: GuideCardProps) {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {personalizedItems.map((item) => (
-              <div key={item.title} className="border border-secondary/25 bg-white p-5 transition-all hover:shadow-md hover:-translate-y-1">
+            {personalizedItems.map((item, idx) => (
+              <div key={idx} className="border border-secondary/25 bg-white p-5 transition-all hover:shadow-md hover:-translate-y-1">
                 <div className="mb-3 h-px w-12 bg-secondary"></div>
                 <h3 className="mb-2 text-base font-semibold text-primary">{item.title}</h3>
                 <p className="text-xs text-textSecondary leading-relaxed">{item.desc}</p>
