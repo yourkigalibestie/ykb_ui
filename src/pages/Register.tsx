@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchPublicServices, type PublicService } from '../data/registrationServices';
 import { type ServiceOffering, type UserRole } from '../utils/auth';
-import { BackendAuthError, loginBackend, registerBackend } from '../utils/backendAuth';
+import { BackendAuthError, loginBackend, registerBackend, API_BASE } from '../utils/backendAuth';
 import logo from '../assets/images/logo.png';
 
 const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
@@ -236,7 +236,6 @@ export function Register() {
     setSendingVerificationCode(true);
     setError(null);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
       const response = await fetch(`${API_BASE}/auth/send-verification-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -267,7 +266,6 @@ export function Register() {
     }
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
       const response = await fetch(`${API_BASE}/auth/verify-email-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

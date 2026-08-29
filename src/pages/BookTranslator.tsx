@@ -13,7 +13,7 @@ type Language = {
     prices: Record<string, number>;
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000/api';
+import { API_BASE } from '../utils/apiConfig';
 
 export function BookTranslator() {
     const [formData, setFormData] = useState<FormData>({

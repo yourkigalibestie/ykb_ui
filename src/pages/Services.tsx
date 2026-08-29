@@ -70,7 +70,7 @@ type ApiErrorResponse = {
   };
 };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+import { API_BASE } from '../utils/apiConfig';
 const PHASE1_ENABLED = String(import.meta.env.VITE_PHASE1 ?? '').toLowerCase() !== 'true';
 
 async function readApiErrorStatus(response: Response): Promise<number> {

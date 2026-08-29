@@ -3,6 +3,7 @@ import { ArrowRight, Calendar, Home, Globe, ShoppingBag, Coffee, Car, Heart, Pen
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { getFriendlyRequestError, getFriendlyResponseError, getFriendlyUnexpectedResponseError } from '../../utils/friendlyErrors';
 import { uploadServiceImage } from '../../utils/uploadImage';
+import { API_BASE } from '../../utils/apiConfig';
 
 interface ServiceCardProps {
     title: string;
@@ -159,8 +160,6 @@ type ServiceSlot = {
     uploading: boolean;
     error: string | null;
 };
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
 function buildSlots(services: PublicService[]): ServiceSlot[] {
     const slots: ServiceSlot[] = [];

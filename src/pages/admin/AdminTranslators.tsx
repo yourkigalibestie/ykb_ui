@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PriceGrid } from '../../components/PriceGrid';
-import { getBackendAuthHeaders } from '../../utils/backendAuth';
+import { getBackendAuthHeaders, API_BASE } from '../../utils/backendAuth';
 import { getFriendlyRequestError, getFriendlyResponseError, getFriendlyUnexpectedResponseError } from '../../utils/friendlyErrors';
 
 type Language = {
@@ -39,8 +39,6 @@ type Translator = {
 	profileImagePublicId?: string | null;
 	languages: TranslatorLanguageLink[];
 };
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
 function normalizeLanguageIds(ids: number[]): number[] {
 	const out: number[] = [];

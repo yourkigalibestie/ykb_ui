@@ -25,7 +25,8 @@ export type BackendSession = BackendAuthResult & {
   createdAt: string;
 };
 
-export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+import { API_BASE } from './apiConfig';
+export { API_BASE };
 
 const SESSION_KEY = 'backendSession';
 

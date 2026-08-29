@@ -16,7 +16,7 @@ type StarterGuideCategory = {
   allowProviderRegistration?: boolean;
 };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+import { API_BASE } from '../utils/apiConfig';
 
 function isStarterGuideCategory(value: unknown): value is StarterGuideCategory {
   if (typeof value !== 'object' || value === null) {
